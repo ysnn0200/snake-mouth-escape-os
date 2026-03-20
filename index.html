@@ -2443,6 +2443,9 @@
     function updateMobileControlsVisibility() {
       const viewportWidth = Math.round(window.visualViewport?.width || window.innerWidth);
       const viewportHeight = Math.round(window.visualViewport?.height || window.innerHeight);
+      const rawViewportHeight = window.visualViewport?.height || window.innerHeight;
+      const rawViewportOffsetTop = window.visualViewport?.offsetTop || 0;
+      const browserToolbarOffset = Math.max(0, window.innerHeight - rawViewportHeight - rawViewportOffsetTop);
       const isTouchDevice =
         window.matchMedia("(pointer: coarse)").matches ||
         navigator.maxTouchPoints > 0;
@@ -2495,6 +2498,19 @@
       document.body.classList.toggle("is-portrait", isPortrait);
       document.body.classList.toggle("is-landscape", !isPortrait);
       mobileControls.classList.toggle("active", isTouchDevice);
+
+      if (isTouchDevice) {
+        const controlBottom = browserToolbarOffset + 10;
+        mobileControls.style.display = isPortrait ? "block" : "grid";
+        mobileControls.style.bottom = `${controlBottom}px`;
+        mobileControls.style.visibility = "visible";
+        mobileControls.style.opacity = "1";
+      } else {
+        mobileControls.style.display = "";
+        mobileControls.style.bottom = "";
+        mobileControls.style.visibility = "";
+        mobileControls.style.opacity = "";
+      }
     }
 
     rewardHeroImage.addEventListener("load", () => {
