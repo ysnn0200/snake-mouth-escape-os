@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>铔囧彛閫冪敓OS</title>
+  <title>蛇口逃生OS</title>
   <style>
     :root {
       --bg-top: #102814;
@@ -191,82 +191,41 @@
       color: var(--muted);
     }
 
-    .mobile-joystick-wrap {
+    .mobile-pad {
+      display: grid;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mobile-pad-row {
       display: flex;
       justify-content: center;
-      align-items: center;
+      gap: 10px;
     }
 
-    .mobile-joystick {
-      position: relative;
-      width: calc(var(--touch-button-width) * 2.15);
-      height: calc(var(--touch-button-width) * 2.15);
-      border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background:
-        radial-gradient(circle at 50% 50%, rgba(158, 232, 106, 0.08), rgba(255, 255, 255, 0.03) 48%, rgba(0, 0, 0, 0.18) 100%);
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.06),
-        0 18px 30px rgba(0, 0, 0, 0.22);
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-      overflow: hidden;
+    .mobile-button {
+      width: var(--touch-button-width);
+      height: var(--touch-button-height);
+      border-radius: var(--touch-button-radius);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+      color: #eef8df;
+      font-size: 24px;
+      font-weight: 900;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+      transform: translateY(0);
     }
 
-    .mobile-joystick::before,
-    .mobile-joystick::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+    .mobile-button:active,
+    .mobile-button.pressed {
+      transform: translateY(1px) scale(0.98);
+      background: linear-gradient(180deg, rgba(158, 232, 106, 0.28), rgba(158, 232, 106, 0.12));
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .mobile-button.spacer {
+      opacity: 0;
       pointer-events: none;
-    }
-
-    .mobile-joystick::before {
-      width: 72%;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .mobile-joystick::after {
-      width: 1px;
-      height: 72%;
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .mobile-joystick-knob {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: calc(var(--touch-button-width) * 0.98);
-      height: calc(var(--touch-button-width) * 0.98);
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      background:
-        radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.18) 22%, rgba(158, 232, 106, 0.2) 23%, rgba(96, 182, 91, 0.96) 70%, rgba(41, 92, 44, 1) 100%);
-      box-shadow:
-        0 12px 22px rgba(0, 0, 0, 0.28),
-        inset 0 2px 6px rgba(255, 255, 255, 0.18);
-      transition: transform 120ms ease, box-shadow 120ms ease;
-      will-change: transform;
-      pointer-events: none;
-    }
-
-    .mobile-joystick.active .mobile-joystick-knob {
-      box-shadow:
-        0 10px 18px rgba(0, 0, 0, 0.24),
-        0 0 24px rgba(158, 232, 106, 0.22),
-        inset 0 2px 6px rgba(255, 255, 255, 0.24);
-    }
-
-    .mobile-joystick-hint {
-      margin-top: 10px;
-      text-align: center;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      color: rgba(239, 248, 223, 0.66);
     }
 
     .arena-wrap {
@@ -1524,7 +1483,7 @@
       text-align: left;
     }
 
-    body.is-touch-device.is-landscape .mobile-joystick-wrap {
+    body.is-touch-device.is-landscape .mobile-pad {
       justify-content: end;
     }
 
@@ -2217,24 +2176,24 @@
   <main class="shell">
     <section class="topbar">
       <div class="title">
-        <h1>铔囧彛閫冪敓OS</h1>
-        <p>浣犳槸涓€闅婚潚铔欙紝瑕佸緸铔囩兢绌胯鐨勬繒鍦拌！閫冨嚭鍘汇€傚悆绋€鏈夌硸鏋滄渻璁婂ぇ锛屼絾楂斿瀷鍙渻璁撲綘鏇撮’鐪硷紝纰板埌浠讳綍铔囬兘鏈冨け鏁椼€?/p>
+        <h1>蛇口逃生OS</h1>
+        <p>你是一隻青蛙，要從蛇群穿行的濕地裡逃出去。吃稀有糖果會變大，但體型只會讓你更顯眼，碰到任何蛇都會失敗。</p>
       </div>
       <div class="stats">
         <div class="card">
-          <span>寰楀垎</span>
+          <span>得分</span>
           <strong id="score">0</strong>
         </div>
         <div class="card">
-          <span>楂斿瀷</span>
+          <span>體型</span>
           <strong id="size">1.0x</strong>
         </div>
         <div class="card">
-          <span>妯″紡</span>
-          <strong id="modeLabel">鏅€?/strong>
+          <span>模式</span>
+          <strong id="modeLabel">普通</strong>
         </div>
         <div class="card">
-          <span>鏈€楂樺垎</span>
+          <span>最高分</span>
           <strong id="best">0</strong>
         </div>
       </div>
@@ -2242,38 +2201,44 @@
 
     <section class="arena-wrap" id="arenaWrap">
       <div class="quick-actions">
-        <button class="secondary" id="topRestartButton">閲嶆柊闁嬪</button>
+        <button class="secondary" id="topRestartButton">重新開始</button>
       </div>
       <div class="bite-mask" aria-hidden="true"></div>
-      <canvas id="game" width="960" height="540" aria-label="铔囧彛閫冪敓OS 閬婃埐鐣竷"></canvas>
+      <canvas id="game" width="960" height="540" aria-label="蛇口逃生OS 遊戲畫布"></canvas>
       <div class="overlay" id="overlay">
         <div class="overlay-panel">
-          <h2 id="overlayTitle">婵曞湴鐢熷瓨闁嬪鍓?/h2>
-          <p id="overlayText">鏂瑰悜閸点€乄ASD 鎴栦笅鏂硅Ц鎺ф柟鍚戦嵉鎺у埗闈掕洐绉诲嫊銆傜硸鏋滄サ鍏剁█鏈夛紝澶х磩姣?100 姊濊泧鎵嶆渻鎻涗締 2 椤嗙硸銆傝泧鏈冨湪鍫村湴涓┛琛岋紝浣犺鎵剧斧闅欓€冪敓锛岀鍒颁换浣曡泧閮芥渻绲愭潫銆?/p>
+          <h2 id="overlayTitle">濕地生存開始前</h2>
+          <p id="overlayText">方向鍵、WASD 或下方觸控方向鍵控制青蛙移動。糖果極其稀有，大約每 100 條蛇才會換來 2 顆糖。蛇會在場地中穿行，你要找縫隙逃生，碰到任何蛇都會結束。</p>
           <div class="modes">
-            <button class="mode-button active" id="normalMode">鏅€氭ā寮?/button>
-            <button class="mode-button secondary" id="hardMode">鍥伴洠妯″紡</button>
+            <button class="mode-button active" id="normalMode">普通模式</button>
+            <button class="mode-button secondary" id="hardMode">困難模式</button>
           </div>
           <div class="controls">
-            <button class="primary" id="startButton">闁嬪閬婃埐</button>
-            <button class="secondary" id="restartButton">閲嶆柊闁嬪</button>
+            <button class="primary" id="startButton">開始遊戲</button>
+            <button class="secondary" id="restartButton">重新開始</button>
           </div>
-          <div class="hint">鏀彺閸电洡鑸囨墜姗熻Ц鎺ф柟鍚戦嵉銆傚洶闆ｆā寮忚！铔囨洿蹇€佽粚璺℃洿鍒侀懡銆佸嚭鐝炬洿闋荤箒銆?/div>
+          <div class="hint">支援鍵盤與手機觸控方向鍵。困難模式裡蛇更快、軌跡更刁鑽、出現更頻繁。</div>
         </div>
       </div>
-      <div class="mobile-controls" id="mobileControls" aria-label="瑙告帶鏂瑰悜閸?>
-        <div class="mobile-controls-label">瑙告帶鏂瑰悜閸?/div>
-        <div class="mobile-joystick-wrap">
-          <div class="mobile-joystick" id="mobileJoystick" aria-label="绉诲嫊鎼栨】" role="application">
-            <div class="mobile-joystick-knob" id="mobileJoystickKnob"></div>
+      <div class="mobile-controls" id="mobileControls" aria-label="觸控方向鍵">
+        <div class="mobile-controls-label">觸控方向鍵</div>
+        <div class="mobile-pad">
+          <div class="mobile-pad-row">
+            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
+            <button class="mobile-button" type="button" data-code="ArrowUp" aria-label="向上">▲</button>
+            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
+          </div>
+          <div class="mobile-pad-row">
+            <button class="mobile-button" type="button" data-code="ArrowLeft" aria-label="向左">◀</button>
+            <button class="mobile-button" type="button" data-code="ArrowDown" aria-label="向下">▼</button>
+            <button class="mobile-button" type="button" data-code="ArrowRight" aria-label="向右">▶</button>
           </div>
         </div>
-        <div class="mobile-joystick-hint">鎸変綇搴曠洡鎷栧嫊鍗冲彲绉诲嫊闈掕洐</div>
       </div>
     </section>
   </main>
   <div class="snake-king-scene" id="snakeKingScene">
-    <div class="snake-king-alert">铔囩帇渚嗕簡</div>
+    <div class="snake-king-alert">蛇王來了</div>
     <div class="snake-king" aria-hidden="true">
       <img class="snake-king-frame" id="snakeKingFrame" src="./assets/snake-king-seq/snake-king-frame-01.png" alt="snake king sequence">
     </div>
@@ -2281,10 +2246,10 @@
   <div class="blackout-screen" id="blackoutScreen"></div>
   <div class="crash-screen" id="crashScreen">
     <div>
-      <div class="crash-score" id="crashScore">浣犳湰娆″垎鏁革細1499</div>
-      <h2>浣犲け鏁椾簡</h2>
-      <p>璜嬮噸鏂版寫鎴?/p>
-      <button class="retry-button" id="crashRestartButton">閲嶆柊闁嬪</button>
+      <div class="crash-score" id="crashScore">你本次分數：1499</div>
+      <h2>你失敗了</h2>
+      <p>請重新挑戰</p>
+      <button class="retry-button" id="crashRestartButton">重新開始</button>
     </div>
   </div>
   <div class="frog-god-scene" id="frogGodScene">
@@ -2310,20 +2275,20 @@
         </div>
       </div>
       <div class="frog-god-copy">
-        <h3 id="frogGodTitle">铔欑鐧诲牬</h3>
-        <p id="frogGodText">宸茬稉绉樺瘑铏曟焙浜嗗彲鎯＄殑铔囩帇锛屾嫰鏁戜簡浣犵殑鍜栧暋銆?/p>
+        <h3 id="frogGodTitle">蛙神登場</h3>
+        <p id="frogGodText">已經秘密處決了可惡的蛇王，拯救了你的咖啡。</p>
       </div>
       <div class="frog-god-action">
-        <div class="frog-god-tip" id="frogGodTip">榛炴搳闋侀潰绻肩簩</div>
-        <button class="frog-god-cta hidden" id="frogGodCta">鐛插彇鍏屾彌纰?/button>
-        <div class="frog-god-cta-sub hidden" id="frogGodCtaSub">榛炴搳寰岀敓鎴愰牁鍙栫窔绱?/div>
+        <div class="frog-god-tip" id="frogGodTip">點擊頁面繼續</div>
+        <button class="frog-god-cta hidden" id="frogGodCta">獲取兌換碼</button>
+        <div class="frog-god-cta-sub hidden" id="frogGodCtaSub">點擊後生成領取線索</div>
       </div>
     </div>
     <div class="dream-modal" id="dreamModal">
       <div class="dream-card">
-        <h4>澶㈤啋鏅傚垎</h4>
-        <p>鍝堝搱鍝堬紝閫欏彧鏄潚铔欒嚚姝诲墠鐨勯粌绮变竴澶㈢椒浜嗐€?/p>
-        <button id="dreamRestartButton">閲嶆柊閱掍締</button>
+        <h4>夢醒時分</h4>
+        <p>哈哈哈，這只是青蛙臨死前的黃粱一夢罷了。</p>
+        <button id="dreamRestartButton">重新醒來</button>
       </div>
     </div>
   </div>
@@ -2344,7 +2309,7 @@
           <div class="reward-serpent three" style="--rot:4deg;"></div>
         </div>
         <div class="reward-hero-frame">
-          <img class="reward-hero-image hidden" id="rewardHeroImage" src="./assets/frog-king-hero.png" alt="铔欑帇闄嶈嚚">
+          <img class="reward-hero-image hidden" id="rewardHeroImage" src="./assets/frog-king-hero.png" alt="蛙王降臨">
           <div class="reward-hero-fallback visible" id="rewardHeroFallback">
             <div class="frog-god">
               <div class="frog-god-crown"></div>
@@ -2362,22 +2327,22 @@
         </div>
       </div>
       <div class="reward-copy">
-        <h3>铔欑闄嶈嚚</h3>
-        <p>鍦?666 鍒嗘檪鍒伙紝铔欑宸叉柆鐩″叏鍫磋泧缇ゃ€備綘鎷垮埌浜嗘サ鍝佺崕鍕碉細鍜栧暋銆?/p>
+        <h3>蛙神降臨</h3>
+        <p>在 666 分時刻，蛙神已斬盡全場蛇群。你拿到了極品獎勵：咖啡。</p>
       </div>
       <div class="reward-actions-shell">
         <div class="reward-actions">
-          <button class="reward-button" id="rewardCodeButton">鐛插彇鍏屾彌纰?/button>
-          <button class="reward-secondary" id="rewardRestartButton">绻肩簩閬婃埐</button>
+          <button class="reward-button" id="rewardCodeButton">獲取兌換碼</button>
+          <button class="reward-secondary" id="rewardRestartButton">繼續遊戲</button>
         </div>
-        <div class="reward-helper">榛炴搳寰岀敓鎴愰牁鍙栫窔绱紝瑷樺緱淇濈暀鐣跺墠闋侀潰</div>
+        <div class="reward-helper">點擊後生成領取線索，記得保留當前頁面</div>
       </div>
       <div class="reward-modal" id="rewardModal">
         <div class="reward-code-card">
-          <h4>鍏屾彌鎻愮ず</h4>
-          <p>璜嬫媿鐓ф闋侀潰锛屽埌寰俊鑱怠鍜╁挬鐛插彇鍜栧暋鐛庡嫷銆?/p>
+          <h4>兌換提示</h4>
+          <p>請拍照此頁面，到微信聯絡咩咩獲取咖啡獎勵。</p>
           <div class="reward-code">FIDEHFHFW-0FED-WBBW-52620</div>
-          <button class="reward-secondary" id="rewardModalClose">鎴戣浣忎簡</button>
+          <button class="reward-secondary" id="rewardModalClose">我記住了</button>
         </div>
       </div>
     </div>
@@ -2400,8 +2365,7 @@
     const normalModeButton = document.getElementById("normalMode");
     const hardModeButton = document.getElementById("hardMode");
     const mobileControls = document.getElementById("mobileControls");
-    const mobileJoystick = document.getElementById("mobileJoystick");
-    const mobileJoystickKnob = document.getElementById("mobileJoystickKnob");
+    const mobileButtons = Array.from(document.querySelectorAll(".mobile-button[data-code]"));
     const snakeKingScene = document.getElementById("snakeKingScene");
     const snakeKingFrame = document.getElementById("snakeKingFrame");
     const blackoutScreen = document.getElementById("blackoutScreen");
@@ -2426,14 +2390,13 @@
 
     const bestKey = "snake-mouth-escape-os-best";
     const input = { left: false, right: false, up: false, down: false };
-    const joystick = { active: false, pointerId: null, x: 0, y: 0 };
     const snakeColors = ["#ff6464", "#f3c84c", "#b17cff", "#f7e06d"];
     const snakeKingFrames = Array.from({ length: 100 }, (_, index) =>
       `./assets/snake-king-seq-100/snake-king-frame-${String(index + 1).padStart(3, "0")}.png`
     );
     const modes = {
       normal: {
-        label: "鏅€?,
+        label: "普通",
         playerSpeed: 290,
         snakeSpeedBase: 92,
         snakeSpeedRamp: 0.35,
@@ -2442,7 +2405,7 @@
         maxSnakeScale: 1.45
       },
       hard: {
-        label: "鍥伴洠",
+        label: "困難",
         playerSpeed: 305,
         snakeSpeedBase: 162,
         snakeSpeedRamp: 0.8,
@@ -2547,7 +2510,6 @@
         mobileControls.style.bottom = "";
         mobileControls.style.visibility = "";
         mobileControls.style.opacity = "";
-        resetJoystick();
       }
     }
 
@@ -2636,14 +2598,14 @@
       }
       if (mode === "hard") {
         setOverlay(
-          "鍥伴洠妯″紡鎻愮ず",
-          "鍥伴洠妯″紡閬斿埌 1500 鍒嗭紝鐛庡嫷鏄竴鏉挅鍟°€傝伅绲″挬鍜╅牁鍙栥€?,
+          "困難模式提示",
+          "困難模式達到 1500 分，獎勵是一杯咖啡。聯絡咩咩領取。",
           true
         );
       } else if (!running) {
         setOverlay(
-          "婵曞湴鐢熷瓨闁嬪鍓?,
-          "鏂瑰悜閸点€乄ASD 鎴栦笅鏂硅Ц鎺ф柟鍚戦嵉鎺у埗闈掕洐绉诲嫊銆傜硸鏋滄サ鍏剁█鏈夛紝澶х磩姣?100 姊濊泧鎵嶆渻鎻涗締 2 椤嗙硸銆傝泧鏈冨湪鍫村湴涓┛琛岋紝浣犺鎵剧斧闅欓€冪敓锛岀鍒颁换浣曡泧閮芥渻绲愭潫銆?,
+          "濕地生存開始前",
+          "方向鍵、WASD 或下方觸控方向鍵控制青蛙移動。糖果極其稀有，大約每 100 條蛇才會換來 2 顆糖。蛇會在場地中穿行，你要找縫隙逃生，碰到任何蛇都會結束。",
           true
         );
       }
@@ -2661,7 +2623,6 @@
 
     function beginRun() {
       resetGame();
-      resetJoystick();
       document.body.classList.remove("warning-active");
       document.body.classList.remove("king-flash");
       document.body.classList.remove("crash-active");
@@ -2681,7 +2642,7 @@
         snakeKingFrameTimer = null;
       }
       snakeKingFrame.src = snakeKingFrames[0];
-      crashScore.textContent = "浣犳湰娆″垎鏁革細1499";
+      crashScore.textContent = "你本次分數：1499";
       running = true;
       setOverlay("", "", false);
       requestAnimationFrame(loop);
@@ -2704,9 +2665,9 @@
       frogGodScene.classList.add("visible");
       frogGodScene.classList.remove("stage-two");
       frogGodScene.classList.remove("dream-break");
-      frogGodTitle.textContent = "铔欑鐧诲牬";
-      frogGodText.textContent = "宸茬稉绉樺瘑铏曟焙浜嗗彲鎯＄殑铔囩帇锛屾嫰鏁戜簡浣犵殑鍜栧暋銆?;
-      frogGodTip.textContent = "榛炴搳闋侀潰绻肩簩";
+      frogGodTitle.textContent = "蛙神登場";
+      frogGodText.textContent = "已經秘密處決了可惡的蛇王，拯救了你的咖啡。";
+      frogGodTip.textContent = "點擊頁面繼續";
       frogGodTip.classList.remove("hidden");
       frogGodCta.classList.add("hidden");
       frogGodCtaSub.classList.add("hidden");
@@ -2720,8 +2681,8 @@
       if (frogGodStage === 1) {
         frogGodStage = 2;
         frogGodScene.classList.add("stage-two");
-        frogGodTitle.textContent = "鐛插彇鍏屾彌鍒?;
-        frogGodText.textContent = "鐛插彇鍏屾彌鍒稿緦鍦ㄥ井淇¤伅绲″挬鍜╅牁鍙栧挅鍟°€傝洐绁炲凡缍撴妸鎴板牬娓呯悊涔炬法浜嗐€?;
+        frogGodTitle.textContent = "獲取兌換券";
+        frogGodText.textContent = "獲取兌換券後在微信聯絡咩咩領取咖啡。蛙神已經把戰場清理乾淨了。";
         frogGodTip.classList.add("hidden");
         frogGodCta.classList.remove("hidden");
         frogGodCtaSub.classList.remove("hidden");
@@ -2748,8 +2709,8 @@
       localStorage.setItem(bestKey, String(state.best));
       updateHud();
       setOverlay(
-        "琚泧缇ゅ寘鍦嶄簡",
-        `${reason}銆傛湰灞€寰楀垎 ${Math.floor(state.score)}锛屽啀瑭︿竴娆℃壘鍑烘洿绌╃殑閫冪敓璺窔銆俙,
+        "被蛇群包圍了",
+        `${reason}。本局得分 ${Math.floor(state.score)}，再試一次找出更穩的逃生路線。`,
         true
       );
     }
@@ -2781,7 +2742,7 @@
       snakeKingTriggered = true;
       running = false;
       state.score = Math.min(state.score, 1499);
-      crashScore.textContent = `浣犳湰娆″垎鏁革細${Math.floor(state.score)}`;
+      crashScore.textContent = `你本次分數：${Math.floor(state.score)}`;
       state.best = Math.max(state.best, Math.floor(state.score));
       localStorage.setItem(bestKey, String(state.best));
       updateHud();
@@ -2900,14 +2861,11 @@
       const frog = state.frog;
       frog.speed = mode.playerSpeed + (state.size - 1) * 12;
 
-      const moveX = ((input.right ? 1 : 0) - (input.left ? 1 : 0)) + joystick.x;
-      const moveY = ((input.down ? 1 : 0) - (input.up ? 1 : 0)) + joystick.y;
-      const length = Math.hypot(moveX, moveY);
-      if (length > 0.001) {
-        const intensity = Math.min(1, length);
-        frog.x += (moveX / length) * frog.speed * delta * intensity;
-        frog.y += (moveY / length) * frog.speed * delta * intensity;
-      }
+      const moveX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      const moveY = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+      const length = Math.hypot(moveX, moveY) || 1;
+      frog.x += (moveX / length) * frog.speed * delta;
+      frog.y += (moveY / length) * frog.speed * delta;
       frog.x = Math.max(frog.radius, Math.min(canvas.width - frog.radius, frog.x));
       frog.y = Math.max(frog.radius, Math.min(canvas.height - frog.radius, frog.y));
       frog.pulse = Math.max(0, frog.pulse - delta * 1.6);
@@ -2956,7 +2914,7 @@
           snake.y < canvas.height + 120;
 
         if (onscreen && circleHit(snake, frog)) {
-          gameOver("闈掕洐闂栭€蹭簡铔囧彛");
+          gameOver("青蛙闖進了蛇口");
           return false;
         }
         return onscreen;
@@ -3116,43 +3074,6 @@
       if (code === "ArrowDown" || code === "KeyS") input.down = pressed;
     }
 
-    function updateJoystickVisual() {
-      const radius = mobileJoystick ? mobileJoystick.clientWidth * 0.32 : 0;
-      const offsetX = joystick.x * radius;
-      const offsetY = joystick.y * radius;
-      if (mobileJoystickKnob) {
-        mobileJoystickKnob.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
-      }
-      if (mobileJoystick) {
-        mobileJoystick.classList.toggle("active", joystick.active);
-      }
-    }
-
-    function resetJoystick() {
-      joystick.active = false;
-      joystick.pointerId = null;
-      joystick.x = 0;
-      joystick.y = 0;
-      updateJoystickVisual();
-    }
-
-    function applyJoystickFromEvent(event) {
-      if (!mobileJoystick) {
-        return;
-      }
-      const rect = mobileJoystick.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-      const dx = event.clientX - centerX;
-      const dy = event.clientY - centerY;
-      const radius = rect.width * 0.34;
-      const length = Math.hypot(dx, dy) || 1;
-      const limited = Math.min(length, radius);
-      joystick.x = dx / length * (limited / radius);
-      joystick.y = dy / length * (limited / radius);
-      updateJoystickVisual();
-    }
-
     window.addEventListener("keydown", (event) => {
       setDirection(event.code, true);
       if (event.code === "Space" && !running) {
@@ -3164,39 +3085,27 @@
       setDirection(event.code, false);
     });
 
-    mobileJoystick?.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      joystick.active = true;
-      joystick.pointerId = event.pointerId;
-      mobileJoystick.setPointerCapture(event.pointerId);
-      applyJoystickFromEvent(event);
-    });
-
-    mobileJoystick?.addEventListener("pointermove", (event) => {
-      if (!joystick.active || joystick.pointerId !== event.pointerId) {
-        return;
-      }
-      event.preventDefault();
-      applyJoystickFromEvent(event);
-    });
-
-    const releaseJoystick = (event) => {
-      if (!joystick.active || (event && joystick.pointerId !== null && event.pointerId !== joystick.pointerId)) {
-        return;
-      }
-      if (event) {
+    mobileButtons.forEach((button) => {
+      const code = button.dataset.code;
+      const press = (event) => {
         event.preventDefault();
-      }
-      resetJoystick();
-    };
-
-    mobileJoystick?.addEventListener("pointerup", releaseJoystick);
-    mobileJoystick?.addEventListener("pointercancel", releaseJoystick);
-    mobileJoystick?.addEventListener("lostpointercapture", releaseJoystick);
+        button.classList.add("pressed");
+        setDirection(code, true);
+      };
+      const release = (event) => {
+        event.preventDefault();
+        button.classList.remove("pressed");
+        setDirection(code, false);
+      };
+      button.addEventListener("pointerdown", press);
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("pointerleave", release);
+    });
 
     normalModeButton.addEventListener("click", () => setMode("normal"));
     hardModeButton.addEventListener("click", () => {
-      const accepted = window.confirm("鍥伴洠妯″紡閬斿埌 1500 鍒嗭紝鐛庡嫷鏄竴鏉挅鍟°€傝伅绲″挬鍜╅牁鍙栥€?);
+      const accepted = window.confirm("困難模式達到 1500 分，獎勵是一杯咖啡。聯絡咩咩領取。");
       if (accepted) {
         setMode("hard");
       }
@@ -3234,4 +3143,3 @@
   </script>
 </body>
 </html>
-
