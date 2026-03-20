@@ -191,41 +191,82 @@
       color: var(--muted);
     }
 
-    .mobile-pad {
-      display: grid;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .mobile-pad-row {
+    .mobile-joystick-wrap {
       display: flex;
       justify-content: center;
-      gap: 10px;
+      align-items: center;
     }
 
-    .mobile-button {
-      width: var(--touch-button-width);
-      height: var(--touch-button-height);
-      border-radius: var(--touch-button-radius);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
-      color: #eef8df;
-      font-size: 24px;
-      font-weight: 900;
-      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
-      transform: translateY(0);
+    .mobile-joystick {
+      position: relative;
+      width: calc(var(--touch-button-width) * 2.2);
+      height: calc(var(--touch-button-width) * 2.2);
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background:
+        radial-gradient(circle at 50% 50%, rgba(158, 232, 106, 0.08), rgba(255, 255, 255, 0.03) 48%, rgba(0, 0, 0, 0.18) 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 18px 30px rgba(0, 0, 0, 0.22);
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
     }
 
-    .mobile-button:active,
-    .mobile-button.pressed {
-      transform: translateY(1px) scale(0.98);
-      background: linear-gradient(180deg, rgba(158, 232, 106, 0.28), rgba(158, 232, 106, 0.12));
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
-    }
-
-    .mobile-button.spacer {
-      opacity: 0;
+    .mobile-joystick::before,
+    .mobile-joystick::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       pointer-events: none;
+    }
+
+    .mobile-joystick::before {
+      width: 72%;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-joystick::after {
+      width: 1px;
+      height: 72%;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-joystick-knob {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: calc(var(--touch-button-width) * 0.98);
+      height: calc(var(--touch-button-width) * 0.98);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background:
+        radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.18) 22%, rgba(158, 232, 106, 0.2) 23%, rgba(96, 182, 91, 0.96) 70%, rgba(41, 92, 44, 1) 100%);
+      box-shadow:
+        0 12px 22px rgba(0, 0, 0, 0.28),
+        inset 0 2px 6px rgba(255, 255, 255, 0.18);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      will-change: transform;
+      pointer-events: none;
+    }
+
+    .mobile-joystick.active .mobile-joystick-knob {
+      box-shadow:
+        0 10px 18px rgba(0, 0, 0, 0.24),
+        0 0 24px rgba(158, 232, 106, 0.22),
+        inset 0 2px 6px rgba(255, 255, 255, 0.24);
+    }
+
+    .mobile-joystick-hint {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      color: rgba(239, 248, 223, 0.66);
     }
 
     .arena-wrap {
@@ -1483,7 +1524,7 @@
       text-align: left;
     }
 
-    body.is-touch-device.is-landscape .mobile-pad {
+    body.is-touch-device.is-landscape .mobile-joystick-wrap {
       justify-content: end;
     }
 
@@ -2220,20 +2261,14 @@
           <div class="hint">支援鍵盤與手機觸控方向鍵。困難模式裡蛇更快、軌跡更刁鑽、出現更頻繁。</div>
         </div>
       </div>
-      <div class="mobile-controls" id="mobileControls" aria-label="觸控方向鍵">
-        <div class="mobile-controls-label">觸控方向鍵</div>
-        <div class="mobile-pad">
-          <div class="mobile-pad-row">
-            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
-            <button class="mobile-button" type="button" data-code="ArrowUp" aria-label="向上">▲</button>
-            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
-          </div>
-          <div class="mobile-pad-row">
-            <button class="mobile-button" type="button" data-code="ArrowLeft" aria-label="向左">◀</button>
-            <button class="mobile-button" type="button" data-code="ArrowDown" aria-label="向下">▼</button>
-            <button class="mobile-button" type="button" data-code="ArrowRight" aria-label="向右">▶</button>
+      <div class="mobile-controls" id="mobileControls" aria-label="觸控搖桿">
+        <div class="mobile-controls-label">觸控搖桿</div>
+        <div class="mobile-joystick-wrap">
+          <div class="mobile-joystick" id="mobileJoystick" aria-label="移動搖桿" role="application">
+            <div class="mobile-joystick-knob" id="mobileJoystickKnob"></div>
           </div>
         </div>
+        <div class="mobile-joystick-hint">按住底盤拖動即可移動青蛙</div>
       </div>
     </section>
   </main>
@@ -2365,7 +2400,8 @@
     const normalModeButton = document.getElementById("normalMode");
     const hardModeButton = document.getElementById("hardMode");
     const mobileControls = document.getElementById("mobileControls");
-    const mobileButtons = Array.from(document.querySelectorAll(".mobile-button[data-code]"));
+    const mobileJoystick = document.getElementById("mobileJoystick");
+    const mobileJoystickKnob = document.getElementById("mobileJoystickKnob");
     const snakeKingScene = document.getElementById("snakeKingScene");
     const snakeKingFrame = document.getElementById("snakeKingFrame");
     const blackoutScreen = document.getElementById("blackoutScreen");
@@ -2390,6 +2426,7 @@
 
     const bestKey = "snake-mouth-escape-os-best";
     const input = { left: false, right: false, up: false, down: false };
+    const joystick = { active: false, pointerId: null, x: 0, y: 0 };
     const snakeColors = ["#ff6464", "#f3c84c", "#b17cff", "#f7e06d"];
     const snakeKingFrames = Array.from({ length: 100 }, (_, index) =>
       `./assets/snake-king-seq-100/snake-king-frame-${String(index + 1).padStart(3, "0")}.png`
@@ -2510,6 +2547,7 @@
         mobileControls.style.bottom = "";
         mobileControls.style.visibility = "";
         mobileControls.style.opacity = "";
+        resetJoystick();
       }
     }
 
@@ -2623,6 +2661,7 @@
 
     function beginRun() {
       resetGame();
+      resetJoystick();
       document.body.classList.remove("warning-active");
       document.body.classList.remove("king-flash");
       document.body.classList.remove("crash-active");
@@ -2861,11 +2900,14 @@
       const frog = state.frog;
       frog.speed = mode.playerSpeed + (state.size - 1) * 12;
 
-      const moveX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-      const moveY = (input.down ? 1 : 0) - (input.up ? 1 : 0);
-      const length = Math.hypot(moveX, moveY) || 1;
-      frog.x += (moveX / length) * frog.speed * delta;
-      frog.y += (moveY / length) * frog.speed * delta;
+      const moveX = ((input.right ? 1 : 0) - (input.left ? 1 : 0)) + joystick.x;
+      const moveY = ((input.down ? 1 : 0) - (input.up ? 1 : 0)) + joystick.y;
+      const length = Math.hypot(moveX, moveY);
+      if (length > 0.001) {
+        const intensity = Math.min(1, length);
+        frog.x += (moveX / length) * frog.speed * delta * intensity;
+        frog.y += (moveY / length) * frog.speed * delta * intensity;
+      }
       frog.x = Math.max(frog.radius, Math.min(canvas.width - frog.radius, frog.x));
       frog.y = Math.max(frog.radius, Math.min(canvas.height - frog.radius, frog.y));
       frog.pulse = Math.max(0, frog.pulse - delta * 1.6);
@@ -3074,6 +3116,43 @@
       if (code === "ArrowDown" || code === "KeyS") input.down = pressed;
     }
 
+    function updateJoystickVisual() {
+      const radius = mobileJoystick ? mobileJoystick.clientWidth * 0.32 : 0;
+      const offsetX = joystick.x * radius;
+      const offsetY = joystick.y * radius;
+      if (mobileJoystickKnob) {
+        mobileJoystickKnob.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
+      }
+      if (mobileJoystick) {
+        mobileJoystick.classList.toggle("active", joystick.active);
+      }
+    }
+
+    function resetJoystick() {
+      joystick.active = false;
+      joystick.pointerId = null;
+      joystick.x = 0;
+      joystick.y = 0;
+      updateJoystickVisual();
+    }
+
+    function applyJoystickFromEvent(event) {
+      if (!mobileJoystick) {
+        return;
+      }
+      const rect = mobileJoystick.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = event.clientX - centerX;
+      const dy = event.clientY - centerY;
+      const radius = rect.width * 0.34;
+      const length = Math.hypot(dx, dy) || 1;
+      const limited = Math.min(length, radius);
+      joystick.x = dx / length * (limited / radius);
+      joystick.y = dy / length * (limited / radius);
+      updateJoystickVisual();
+    }
+
     window.addEventListener("keydown", (event) => {
       setDirection(event.code, true);
       if (event.code === "Space" && !running) {
@@ -3085,23 +3164,35 @@
       setDirection(event.code, false);
     });
 
-    mobileButtons.forEach((button) => {
-      const code = button.dataset.code;
-      const press = (event) => {
-        event.preventDefault();
-        button.classList.add("pressed");
-        setDirection(code, true);
-      };
-      const release = (event) => {
-        event.preventDefault();
-        button.classList.remove("pressed");
-        setDirection(code, false);
-      };
-      button.addEventListener("pointerdown", press);
-      button.addEventListener("pointerup", release);
-      button.addEventListener("pointercancel", release);
-      button.addEventListener("pointerleave", release);
+    mobileJoystick?.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      joystick.active = true;
+      joystick.pointerId = event.pointerId;
+      mobileJoystick.setPointerCapture(event.pointerId);
+      applyJoystickFromEvent(event);
     });
+
+    mobileJoystick?.addEventListener("pointermove", (event) => {
+      if (!joystick.active || joystick.pointerId !== event.pointerId) {
+        return;
+      }
+      event.preventDefault();
+      applyJoystickFromEvent(event);
+    });
+
+    const releaseJoystick = (event) => {
+      if (!joystick.active || (event && joystick.pointerId !== null && event.pointerId !== joystick.pointerId)) {
+        return;
+      }
+      if (event) {
+        event.preventDefault();
+      }
+      resetJoystick();
+    };
+
+    mobileJoystick?.addEventListener("pointerup", releaseJoystick);
+    mobileJoystick?.addEventListener("pointercancel", releaseJoystick);
+    mobileJoystick?.addEventListener("lostpointercapture", releaseJoystick);
 
     normalModeButton.addEventListener("click", () => setMode("normal"));
     hardModeButton.addEventListener("click", () => {
