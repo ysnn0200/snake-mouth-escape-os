@@ -1,0 +1,2575 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>蛇口逃生OS</title>
+  <style>
+    :root {
+      --bg-top: #102814;
+      --bg-bottom: #05130b;
+      --panel: rgba(9, 22, 12, 0.8);
+      --line: rgba(177, 241, 146, 0.24);
+      --text: #eef8df;
+      --muted: #b7c9aa;
+      --accent: #9ee86a;
+      --danger: #ff7474;
+      --gold: #f7cc4c;
+      --purple: #b17cff;
+      --leaf: #5dc173;
+      --brown: #3a291d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: "Segoe UI", "PingFang SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(158, 232, 106, 0.15), transparent 28%),
+        radial-gradient(circle at bottom, rgba(247, 204, 76, 0.12), transparent 34%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+      overflow: hidden;
+    }
+
+    body.crash-active .shell {
+      animation: shell-shake 90ms linear infinite;
+      filter: saturate(1.5) contrast(1.2);
+    }
+
+    body.king-flash::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, rgba(255, 100, 100, 0.18), rgba(0, 0, 0, 0.94)),
+        rgba(20, 0, 0, 0.9);
+      animation: flash-bang 120ms steps(2, end) infinite;
+      pointer-events: none;
+      z-index: 42;
+    }
+
+    body.warning-active::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      border: 18px solid rgba(255, 70, 70, 0.72);
+      box-shadow: inset 0 0 60px rgba(255, 30, 30, 0.65);
+      animation: warning-pulse 220ms ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 35;
+    }
+
+    body.crash-active::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.8);
+      mix-blend-mode: screen;
+      animation: flash-bang 140ms steps(2, end) infinite;
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    .shell {
+      width: min(94vw, 1040px);
+      padding: 24px;
+      border-radius: 30px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .title h1 {
+      margin: 0 0 6px;
+      font-size: clamp(28px, 5vw, 46px);
+      letter-spacing: 0.04em;
+    }
+
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 620px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .card {
+      min-width: 118px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .card span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .card strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 22px;
+    }
+
+    .card.alert strong {
+      color: #ffd2d2;
+      animation: score-jump 120ms ease-in-out infinite alternate;
+    }
+
+    .quick-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0 0 14px;
+    }
+
+    .quick-actions button {
+      padding: 10px 16px;
+    }
+
+    .mobile-controls {
+      display: none;
+      margin-top: 14px;
+      padding: 14px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+      border-radius: 22px;
+      border: 1px solid rgba(177, 241, 146, 0.16);
+      background: linear-gradient(180deg, rgba(11, 28, 16, 0.72), rgba(6, 15, 9, 0.88));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+    }
+
+    .mobile-controls.active {
+      display: block;
+    }
+
+    .mobile-controls-label {
+      margin: 0 0 12px;
+      text-align: center;
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
+
+    .mobile-pad {
+      display: grid;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mobile-pad-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mobile-button {
+      width: 72px;
+      height: 62px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+      color: #eef8df;
+      font-size: 24px;
+      font-weight: 900;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+      transform: translateY(0);
+    }
+
+    .mobile-button:active,
+    .mobile-button.pressed {
+      transform: translateY(1px) scale(0.98);
+      background: linear-gradient(180deg, rgba(158, 232, 106, 0.28), rgba(158, 232, 106, 0.12));
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .mobile-button.spacer {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .arena-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bite-mask {
+      position: absolute;
+      top: 58px;
+      right: -120%;
+      width: 128%;
+      height: calc(100% - 58px);
+      background:
+        radial-gradient(circle at 84% 50%, rgba(10, 0, 0, 0.96), rgba(0, 0, 0, 1) 54%, rgba(0, 0, 0, 0.98) 100%);
+      clip-path: polygon(100% 0%, 34% 6%, 28% 14%, 24% 22%, 20% 30%, 18% 38%, 14% 48%, 16% 58%, 12% 68%, 14% 78%, 20% 86%, 28% 93%, 100% 100%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 18;
+      filter: drop-shadow(-20px 0 24px rgba(0, 0, 0, 0.55));
+    }
+
+    .arena-wrap.eaten .bite-mask {
+      opacity: 1;
+      animation: bite-sweep 500ms cubic-bezier(0.16, 0.8, 0.18, 1) forwards;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 22px;
+      border: 1px solid rgba(177, 241, 146, 0.2);
+      background: linear-gradient(180deg, rgba(18, 45, 22, 0.92), rgba(8, 18, 10, 0.98));
+      touch-action: none;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      transition: opacity 180ms ease;
+    }
+
+    .overlay-panel {
+      max-width: 620px;
+      padding: 24px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(5, 12, 7, 0.78);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
+    }
+
+    .overlay h2 {
+      margin: 0 0 12px;
+      font-size: clamp(26px, 4vw, 42px);
+    }
+
+    .overlay p {
+      margin: 0 0 18px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .controls,
+    .modes {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .modes {
+      margin-bottom: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .primary {
+      color: #10200e;
+      background: linear-gradient(135deg, var(--accent), #d9ffb8);
+    }
+
+    .secondary {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .mode-button.active {
+      color: #10200e;
+      background: linear-gradient(135deg, var(--gold), #fff0a6);
+    }
+
+    .hint {
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .blackout-screen,
+    .crash-screen {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 220ms ease;
+    }
+
+    .blackout-screen {
+      background: #000;
+      z-index: 58;
+    }
+
+    .blackout-screen.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .crash-screen {
+      background: radial-gradient(circle at center, rgba(60, 0, 0, 0.92), rgba(0, 0, 0, 0.98));
+      z-index: 60;
+      text-align: center;
+    }
+
+    .crash-screen.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .crash-screen h2 {
+      margin: 0;
+      font-size: clamp(54px, 12vw, 120px);
+      letter-spacing: 0.16em;
+      color: #fff2f2;
+      text-shadow: 0 0 30px rgba(255, 70, 70, 0.55);
+    }
+
+    .crash-score {
+      margin: 0 0 20px;
+      font-size: clamp(24px, 4vw, 42px);
+      font-weight: 800;
+      color: #ffe8e8;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 18px rgba(255, 100, 100, 0.35);
+    }
+
+    .crash-screen p {
+      margin: 18px 0 0;
+      font-size: clamp(18px, 3vw, 28px);
+      color: #ffd6d6;
+      letter-spacing: 0.2em;
+    }
+
+    .retry-button {
+      margin-top: 28px;
+      padding: 14px 28px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      background: linear-gradient(135deg, #4da3ff, #1d6dff);
+      color: #f5fbff;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      box-shadow: 0 14px 30px rgba(29, 109, 255, 0.35);
+    }
+
+    .frog-god-scene {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top, rgba(255, 232, 123, 0.14), transparent 22%),
+        radial-gradient(circle at bottom, rgba(88, 203, 130, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(7, 20, 14, 0.98), rgba(5, 10, 8, 0.98));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 280ms ease;
+      z-index: 61;
+      overflow: hidden;
+    }
+
+    .frog-god-scene.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .frog-god-scene::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(160, 168, 178, 0), rgba(96, 102, 110, 0));
+      opacity: 0;
+      transition: opacity 900ms ease, background 900ms ease;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .frog-god-scene.dream-break {
+      filter: grayscale(0.95) saturate(0.7);
+      transition: filter 900ms ease, opacity 280ms ease;
+    }
+
+    .frog-god-scene.dream-break::before {
+      opacity: 1;
+      background: linear-gradient(180deg, rgba(178, 182, 188, 0.12), rgba(90, 94, 100, 0.42));
+    }
+
+    .frog-god-scene.dream-break .frog-god-panel {
+      transform: translateY(0) scale(0.985);
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.55);
+    }
+
+    .frog-god-scene.lightning::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(115deg, transparent 0 42%, rgba(255, 255, 255, 0.94) 46%, transparent 50%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(170, 200, 255, 0.2));
+      mix-blend-mode: screen;
+      animation: lightning-flash 260ms steps(2, end) 1, lightning-flash-strong 320ms steps(2, end) 1 900ms;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .frog-god-stars,
+    .frog-god-stars::before,
+    .frog-god-stars::after {
+      position: absolute;
+      inset: 0;
+      content: "";
+      background-image:
+        radial-gradient(circle, rgba(255, 246, 197, 0.75) 0 2px, transparent 3px),
+        radial-gradient(circle, rgba(164, 255, 183, 0.5) 0 1.5px, transparent 3px);
+      background-size: 180px 180px, 240px 240px;
+      background-position: 0 0, 80px 60px;
+      animation: star-drift 18s linear infinite;
+      opacity: 0.7;
+    }
+
+    .frog-god-stars::before {
+      transform: scale(1.15);
+      animation-duration: 24s;
+      opacity: 0.45;
+    }
+
+    .frog-god-stars::after {
+      transform: scale(0.9);
+      animation-duration: 14s;
+      opacity: 0.32;
+    }
+
+    .rain-layer {
+      position: fixed;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1600ms ease;
+      z-index: 4;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(180, 188, 200, 0.08), rgba(30, 34, 40, 0.2));
+    }
+
+    .frog-god-scene.dream-break .rain-layer {
+      opacity: 1;
+    }
+
+    .rain-layer::before,
+    .rain-layer::after {
+      content: "";
+      position: absolute;
+      inset: -25% -10% 0 -10%;
+      background-image:
+        linear-gradient(rgba(220, 230, 255, 0.44), rgba(220, 230, 255, 0)),
+        linear-gradient(rgba(220, 230, 255, 0.3), rgba(220, 230, 255, 0)),
+        linear-gradient(rgba(220, 230, 255, 0.2), rgba(220, 230, 255, 0)),
+        linear-gradient(rgba(220, 230, 255, 0.16), rgba(220, 230, 255, 0));
+      background-size: 2px 120px, 2px 140px, 2px 110px, 2px 160px;
+      background-position: 0 0, 90px 24px, 180px 50px, 270px 12px;
+      background-repeat: repeat;
+      transform: skewX(-10deg);
+      animation: rain-fall 460ms linear infinite;
+      opacity: 0.88;
+    }
+
+    .rain-layer::after {
+      background-position: 40px 70px, 130px 0, 240px 30px, 320px 90px;
+      animation-duration: 620ms;
+      opacity: 0.62;
+    }
+
+    .rain-splash {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 26%;
+      opacity: 0;
+      transition: opacity 1400ms ease;
+      z-index: 4;
+      background:
+        radial-gradient(circle at 8% 80%, rgba(230, 235, 255, 0.45) 0 2px, transparent 5px),
+        radial-gradient(circle at 18% 88%, rgba(230, 235, 255, 0.34) 0 2px, transparent 5px),
+        radial-gradient(circle at 30% 84%, rgba(230, 235, 255, 0.4) 0 2px, transparent 5px),
+        radial-gradient(circle at 44% 90%, rgba(230, 235, 255, 0.32) 0 2px, transparent 5px),
+        radial-gradient(circle at 58% 86%, rgba(230, 235, 255, 0.42) 0 2px, transparent 5px),
+        radial-gradient(circle at 72% 90%, rgba(230, 235, 255, 0.35) 0 2px, transparent 5px),
+        radial-gradient(circle at 86% 84%, rgba(230, 235, 255, 0.38) 0 2px, transparent 5px);
+      animation: splash-flicker 1.4s ease-in-out infinite alternate;
+    }
+
+    .frog-god-scene.dream-break .rain-splash {
+      opacity: 1;
+    }
+
+    .frog-god-panel {
+      position: relative;
+      width: min(900px, 92vw);
+      padding: 40px 30px 30px;
+      border-radius: 34px;
+      border: 1px solid rgba(255, 245, 181, 0.2);
+      background: linear-gradient(180deg, rgba(18, 40, 27, 0.78), rgba(8, 14, 10, 0.9));
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.45);
+      text-align: center;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transform: translateY(24px) scale(0.96);
+      transition: transform 320ms ease, opacity 320ms ease;
+      z-index: 2;
+    }
+
+    .frog-god-scene.dream-break .frog-god-copy p,
+    .frog-god-scene.dream-break .frog-god-copy h3 {
+      animation: dread-text 120ms ease-in-out infinite alternate;
+    }
+
+    .frog-god-scene.visible .frog-god-panel {
+      transform: translateY(0) scale(1);
+    }
+
+    .frog-god-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(255, 235, 153, 0.12);
+      color: #ffe8a8;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      margin-bottom: 22px;
+    }
+
+    .frog-god-stage {
+      position: relative;
+      width: min(720px, 100%);
+      height: 320px;
+      overflow: hidden;
+    }
+
+    .frog-god-glow {
+      position: absolute;
+      left: 50%;
+      bottom: 10px;
+      width: 320px;
+      height: 120px;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 233, 133, 0.42), rgba(123, 255, 161, 0.08) 60%, transparent 72%);
+      filter: blur(8px);
+      animation: holy-glow 2.4s ease-in-out infinite alternate;
+    }
+
+    .frog-god-beam {
+      position: absolute;
+      left: 50%;
+      top: -40px;
+      width: 240px;
+      height: 280px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, rgba(255, 243, 163, 0.7), rgba(255, 243, 163, 0.14), transparent 82%);
+      clip-path: polygon(42% 0%, 58% 0%, 100% 100%, 0% 100%);
+      filter: blur(4px);
+      opacity: 0.9;
+      animation: beam-pulse 1.8s ease-in-out infinite alternate;
+    }
+
+    .frog-god {
+      position: absolute;
+      left: 50%;
+      bottom: 30px;
+      width: 200px;
+      height: 180px;
+      transform: translateX(-50%) translateY(-180px) scale(0.82);
+      animation: frog-hero-drop 800ms cubic-bezier(0.14, 0.78, 0.16, 1) forwards, frog-hero-bob 2.8s ease-in-out 900ms infinite;
+    }
+
+    .frog-god-crown {
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      width: 88px;
+      height: 52px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, #fff1a5, #e0ac24);
+      clip-path: polygon(0 100%, 10% 44%, 24% 68%, 36% 16%, 50% 68%, 64% 14%, 76% 68%, 90% 42%, 100% 100%);
+      filter: drop-shadow(0 6px 10px rgba(255, 193, 78, 0.38));
+    }
+
+    .frog-god-crown::after {
+      content: "";
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: -6px;
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffd75a, #b87e0c);
+    }
+
+    .frog-god-body {
+      position: absolute;
+      left: 50%;
+      top: 42px;
+      width: 150px;
+      height: 116px;
+      transform: translateX(-50%);
+      border-radius: 46% 46% 42% 42%;
+      background: radial-gradient(circle at 35% 25%, #9bff84, #52b945 68%, #377f31 100%);
+      box-shadow: inset -12px -12px 18px rgba(17, 61, 23, 0.26);
+    }
+
+    .frog-god-eye {
+      position: absolute;
+      top: 18px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .frog-god-eye.left {
+      left: 34px;
+    }
+
+    .frog-god-eye.right {
+      right: 34px;
+    }
+
+    .frog-god-eye::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 6px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #16391a;
+      transition: transform 200ms ease, background 200ms ease, opacity 200ms ease;
+    }
+
+    .frog-god-scene.dream-break .frog-god-eye::after {
+      background: #0f1012;
+      opacity: 0.9;
+      transform: scaleY(1.7) scaleX(0.72);
+    }
+
+    .frog-god-mouth {
+      position: absolute;
+      left: 50%;
+      bottom: 20px;
+      width: 62px;
+      height: 28px;
+      transform: translateX(-50%);
+      border-bottom: 5px solid #2e6a28;
+      border-radius: 0 0 40px 40px;
+    }
+
+    .frog-god-arm {
+      position: absolute;
+      top: 88px;
+      width: 24px;
+      height: 64px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #6fd664, #459f3f);
+    }
+
+    .frog-god-arm.left {
+      left: 18px;
+      transform: rotate(30deg);
+    }
+
+    .frog-god-arm.right {
+      right: 12px;
+      transform: rotate(-34deg);
+      transform-origin: top center;
+    }
+
+    .frog-god-sword {
+      position: absolute;
+      right: -16px;
+      top: 8px;
+      width: 18px;
+      height: 126px;
+      transform: rotate(-18deg);
+    }
+
+    .frog-god-sword::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: 0;
+      width: 8px;
+      height: 96px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #fdfefe, #99cfff);
+      box-shadow: 0 0 14px rgba(116, 182, 255, 0.45);
+    }
+
+    .frog-god-sword::after {
+      content: "";
+      position: absolute;
+      left: -4px;
+      bottom: 18px;
+      width: 26px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #ffd772, #fff1b6, #ffd772);
+      box-shadow: 0 0 10px rgba(255, 222, 123, 0.35);
+    }
+
+    .frog-god-copy {
+      max-width: 720px;
+      margin: 0 auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .frog-god-copy h3 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 60px);
+      letter-spacing: 0.08em;
+      color: #f7ffef;
+      text-shadow: 0 0 24px rgba(133, 255, 177, 0.25);
+    }
+
+    .frog-god-copy p {
+      margin: 0;
+      font-size: clamp(18px, 2.5vw, 28px);
+      line-height: 1.7;
+      color: #dbeed6;
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .frog-god-action {
+      position: static;
+      width: min(560px, 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 18px 20px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255, 249, 213, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 248, 197, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    .frog-god-tip {
+      margin-top: 0;
+      min-height: 1.4em;
+      font-size: 14px;
+      color: #bcd0bb;
+      letter-spacing: 0.08em;
+      opacity: 0.9;
+      animation: soft-blink 1.4s ease-in-out infinite alternate;
+    }
+
+    .frog-god-scene.stage-two .frog-god-copy h3 {
+      color: #fff3c4;
+    }
+
+    .frog-god-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+      min-width: 240px;
+      padding: 16px 26px;
+      border-radius: 18px;
+      background:
+        linear-gradient(135deg, #fff4b1, #f4c654 48%, #dca72e);
+      color: #332006;
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: 0.12em;
+      border: 1px solid rgba(255, 247, 196, 0.36);
+      box-shadow:
+        0 16px 36px rgba(227, 186, 66, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+    }
+
+    .frog-god-cta:hover {
+      transform: translateY(-2px) scale(1.01);
+      box-shadow:
+        0 22px 44px rgba(227, 186, 66, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.55);
+      filter: saturate(1.04);
+    }
+
+    .frog-god-cta-sub {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: rgba(239, 245, 230, 0.72);
+    }
+
+    .dream-modal {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 800ms ease;
+      z-index: 5;
+    }
+
+    .frog-god-scene.dream-break .dream-modal {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .dream-card {
+      width: min(680px, 88vw);
+      padding: 34px 28px 28px;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(180deg, rgba(28, 28, 30, 0.94), rgba(14, 14, 16, 0.96));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+      text-align: center;
+      transform: translateY(18px) scale(0.96);
+      transition: transform 700ms ease;
+    }
+
+    .frog-god-scene.dream-break .dream-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .dream-card h4 {
+      margin: 0 0 14px;
+      font-size: clamp(28px, 4vw, 46px);
+      letter-spacing: 0.08em;
+      color: #f2f2f2;
+    }
+
+    .dream-card p {
+      margin: 0;
+      font-size: clamp(18px, 2.4vw, 28px);
+      line-height: 1.7;
+      color: #d0d0d0;
+    }
+
+    .dream-card button {
+      margin-top: 24px;
+      padding: 14px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: linear-gradient(135deg, #8b8f99, #525761);
+      color: #f2f4f8;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .reward-scene {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at top, rgba(255, 232, 123, 0.12), transparent 26%),
+        linear-gradient(180deg, rgba(10, 25, 16, 0.96), rgba(5, 12, 8, 0.98));
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 320ms ease;
+      z-index: 62;
+      overflow: hidden;
+    }
+
+    .reward-scene.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .reward-panel {
+      position: relative;
+      width: min(860px, 92vw);
+      padding: 34px 28px 28px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 244, 183, 0.18);
+      background: linear-gradient(180deg, rgba(18, 40, 27, 0.84), rgba(7, 14, 9, 0.94));
+      box-shadow: 0 26px 90px rgba(0, 0, 0, 0.42);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      transform: translateY(20px) scale(0.96);
+      transition: transform 340ms ease;
+    }
+
+    .reward-scene.visible .reward-panel {
+      transform: translateY(0) scale(1);
+    }
+
+    .reward-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(255, 230, 135, 0.12);
+      color: #ffe59b;
+      font-weight: 900;
+      letter-spacing: 0.12em;
+    }
+
+    .reward-stage {
+      position: relative;
+      width: min(760px, 100%);
+      height: 320px;
+      border-radius: 26px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255, 242, 162, 0.16), transparent 32%),
+        linear-gradient(180deg, rgba(30, 58, 38, 0.72), rgba(16, 30, 20, 0.36));
+    }
+
+    .reward-stage::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: -34px;
+      width: 240px;
+      height: 320px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, rgba(255, 245, 192, 0.82), rgba(255, 245, 192, 0.12), transparent 82%);
+      clip-path: polygon(35% 0%, 65% 0%, 100% 100%, 0% 100%);
+      filter: blur(6px);
+      opacity: 0.72;
+      z-index: 1;
+    }
+
+    .reward-burst {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, rgba(255, 239, 156, 0.4), transparent 18%),
+        conic-gradient(from 0deg, rgba(255, 235, 145, 0.14), transparent 20%, rgba(160, 255, 182, 0.12) 42%, transparent 60%, rgba(255, 235, 145, 0.14) 82%, transparent 100%);
+      filter: blur(2px);
+      animation: reward-spin 10s linear infinite;
+    }
+
+    .reward-slay-flash {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(115deg, transparent 0 34%, rgba(255, 248, 194, 0.92) 48%, transparent 56%),
+        radial-gradient(circle at center, rgba(255, 236, 154, 0.34), transparent 42%);
+      opacity: 0;
+      mix-blend-mode: screen;
+    }
+
+    .reward-serpents {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    .reward-serpent {
+      position: absolute;
+      width: 220px;
+      height: 84px;
+      border-radius: 999px;
+      background:
+        radial-gradient(circle at 16% 40%, rgba(255,255,255,0.95), rgba(220,228,232,0.92) 34%, rgba(145,156,164,0.88) 68%, rgba(86,92,98,0.8) 100%);
+      box-shadow: inset -18px -10px 18px rgba(0,0,0,0.12);
+      filter: blur(0.2px);
+      animation: serpent-fade 1800ms ease-in-out infinite;
+    }
+
+    .reward-serpent::after {
+      content: "";
+      position: absolute;
+      right: 18px;
+      top: 28px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #1e2327;
+    }
+
+    .reward-serpent.one {
+      left: 10%;
+      bottom: 26%;
+      transform: rotate(-12deg);
+    }
+
+    .reward-serpent.two {
+      right: 8%;
+      bottom: 18%;
+      transform: rotate(16deg);
+    }
+
+    .reward-serpent.three {
+      left: 34%;
+      bottom: 6%;
+      width: 280px;
+      transform: rotate(4deg);
+    }
+
+    .reward-impact {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .reward-slash {
+      position: absolute;
+      left: 50%;
+      top: 48%;
+      width: 420px;
+      height: 18px;
+      border-radius: 999px;
+      opacity: 0;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 248, 210, 0.98) 34%, rgba(183, 236, 255, 0.98) 58%, rgba(255, 255, 255, 0));
+      box-shadow: 0 0 32px rgba(255, 245, 190, 0.5);
+      transform-origin: center;
+      mix-blend-mode: screen;
+      filter: blur(0.4px);
+    }
+
+    .reward-slash.one {
+      transform: translate(-50%, -50%) rotate(-16deg) scaleX(0.32);
+    }
+
+    .reward-slash.two {
+      top: 42%;
+      transform: translate(-50%, -50%) rotate(12deg) scaleX(0.28);
+    }
+
+    .reward-slash.three {
+      top: 56%;
+      width: 360px;
+      transform: translate(-50%, -50%) rotate(-8deg) scaleX(0.22);
+    }
+
+    .reward-hero-frame {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: min(340px, 54vw);
+      height: 100%;
+      transform: translateX(-50%);
+      display: grid;
+      place-items: end center;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .reward-hero-image {
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.38));
+      animation: hero-settle 900ms cubic-bezier(0.16, 0.8, 0.18, 1);
+    }
+
+    .reward-hero-fallback {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      width: 210px;
+      height: 190px;
+      transform: translateX(-50%);
+      display: none;
+      animation: hero-settle 900ms cubic-bezier(0.16, 0.8, 0.18, 1);
+    }
+
+    .reward-hero-fallback.visible {
+      display: block;
+    }
+
+    .reward-copy h3 {
+      margin: 0;
+      font-size: clamp(34px, 5vw, 58px);
+      color: #fff6c7;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 24px rgba(255, 222, 114, 0.24);
+    }
+
+    .reward-copy p {
+      margin: 0;
+      font-size: clamp(18px, 2.4vw, 28px);
+      color: #deeed6;
+      line-height: 1.7;
+    }
+
+    .reward-copy {
+      max-width: 760px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .reward-actions-shell {
+      width: min(760px, 100%);
+      padding: 18px 20px 20px;
+      border-radius: 26px;
+      border: 1px solid rgba(255, 249, 215, 0.12);
+      background: linear-gradient(180deg, rgba(255, 249, 213, 0.08), rgba(255, 255, 255, 0.03));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    .reward-actions {
+      margin-top: 0;
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .reward-helper {
+      font-size: 13px;
+      color: rgba(237, 245, 234, 0.74);
+      letter-spacing: 0.06em;
+    }
+
+    .reward-button {
+      padding: 16px 26px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 245, 189, 0.3);
+      background: linear-gradient(135deg, #fff4b1, #f5cb63 50%, #dca72e);
+      color: #302008;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      box-shadow: 0 16px 36px rgba(226, 181, 53, 0.22);
+    }
+
+    .reward-secondary {
+      padding: 16px 24px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.06);
+      color: #edf5ea;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .reward-modal {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 260ms ease;
+      z-index: 4;
+    }
+
+    .reward-scene.show-code .reward-modal {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .reward-scene.visible .reward-slay-flash {
+      animation: reward-slay 1200ms ease-out 1 both;
+    }
+
+    .reward-scene.visible .reward-slash.one {
+      animation: reward-slash-one 1200ms cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+    }
+
+    .reward-scene.visible .reward-slash.two {
+      animation: reward-slash-two 1100ms cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+    }
+
+    .reward-scene.visible .reward-slash.three {
+      animation: reward-slash-three 900ms cubic-bezier(0.2, 0.8, 0.2, 1) 1 both;
+    }
+
+    .reward-scene.visible .reward-serpent.one {
+      animation: serpent-strike-left 1200ms ease-out 1 both;
+    }
+
+    .reward-scene.visible .reward-serpent.two {
+      animation: serpent-strike-right 1200ms ease-out 1 both;
+    }
+
+    .reward-scene.visible .reward-serpent.three {
+      animation: serpent-strike-down 1200ms ease-out 1 both;
+    }
+
+    .reward-code-card {
+      width: min(700px, 88vw);
+      padding: 30px 26px 26px;
+      border-radius: 28px;
+      border: 1px dashed rgba(255, 231, 154, 0.32);
+      background:
+        linear-gradient(180deg, rgba(30, 27, 20, 0.98), rgba(16, 14, 12, 0.99)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 8px, transparent 8px 16px);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.52);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .reward-code-card::before,
+    .reward-code-card::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #070908;
+      transform: translateY(-50%);
+      box-shadow: inset 0 0 0 1px rgba(255, 239, 180, 0.14);
+    }
+
+    .reward-code-card::before {
+      left: -11px;
+    }
+
+    .reward-code-card::after {
+      right: -11px;
+    }
+
+    .reward-code-card h4 {
+      margin: 0 0 12px;
+      font-size: clamp(28px, 4vw, 42px);
+      color: #f8f4d5;
+      letter-spacing: 0.08em;
+    }
+
+    .reward-code-card p {
+      margin: 0;
+      font-size: clamp(18px, 2.3vw, 26px);
+      line-height: 1.7;
+      color: #d9ded8;
+    }
+
+    .reward-code {
+      margin: 18px auto 0;
+      padding: 16px 18px;
+      border-radius: 18px;
+      max-width: 520px;
+      background: linear-gradient(135deg, rgba(255, 244, 183, 0.12), rgba(255, 255, 255, 0.05));
+      border: 1px solid rgba(255, 240, 178, 0.18);
+      color: #fff2be;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: clamp(18px, 2.3vw, 26px);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      word-break: break-all;
+    }
+
+    @keyframes reward-spin {
+      0% { transform: rotate(0deg) scale(1); }
+      100% { transform: rotate(360deg) scale(1.06); }
+    }
+
+    @keyframes reward-slay {
+      0% { opacity: 0; transform: translateX(-8%) scaleX(0.94); }
+      26% { opacity: 0.95; transform: translateX(0) scaleX(1); }
+      60% { opacity: 0.08; transform: translateX(8%) scaleX(1.05); }
+      100% { opacity: 0; transform: translateX(10%) scaleX(1.06); }
+    }
+
+    @keyframes reward-slash-one {
+      0% { opacity: 0; transform: translate(-50%, -50%) rotate(-16deg) scaleX(0.2); }
+      18% { opacity: 1; transform: translate(-50%, -50%) rotate(-16deg) scaleX(1.04); }
+      100% { opacity: 0; transform: translate(-50%, -62%) rotate(-10deg) scaleX(1.12); }
+    }
+
+    @keyframes reward-slash-two {
+      0%, 24% { opacity: 0; transform: translate(-50%, -50%) rotate(12deg) scaleX(0.16); }
+      44% { opacity: 1; transform: translate(-50%, -50%) rotate(12deg) scaleX(1); }
+      100% { opacity: 0; transform: translate(-50%, -44%) rotate(8deg) scaleX(1.08); }
+    }
+
+    @keyframes reward-slash-three {
+      0%, 40% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scaleX(0.12); }
+      60% { opacity: 0.92; transform: translate(-50%, -50%) rotate(-8deg) scaleX(1); }
+      100% { opacity: 0; transform: translate(-50%, -40%) rotate(-2deg) scaleX(1.08); }
+    }
+
+    @keyframes serpent-strike-left {
+      0% { opacity: 0.9; transform: rotate(-12deg) translate3d(0, 0, 0) scale(1); filter: blur(0px); }
+      38% { opacity: 0.94; transform: rotate(-22deg) translate3d(-18px, -10px, 0) scale(1.02); filter: blur(0px); }
+      100% { opacity: 0; transform: rotate(-36deg) translate3d(-96px, 52px, 0) scale(0.86); filter: blur(5px); }
+    }
+
+    @keyframes serpent-strike-right {
+      0% { opacity: 0.9; transform: rotate(16deg) translate3d(0, 0, 0) scale(1); filter: blur(0px); }
+      38% { opacity: 0.94; transform: rotate(26deg) translate3d(24px, -12px, 0) scale(1.02); filter: blur(0px); }
+      100% { opacity: 0; transform: rotate(38deg) translate3d(108px, 58px, 0) scale(0.84); filter: blur(5px); }
+    }
+
+    @keyframes serpent-strike-down {
+      0% { opacity: 0.92; transform: rotate(4deg) translate3d(0, 0, 0) scale(1); filter: blur(0px); }
+      44% { opacity: 0.96; transform: rotate(-4deg) translate3d(0, -14px, 0) scale(1.03); filter: blur(0px); }
+      100% { opacity: 0; transform: rotate(-16deg) translate3d(0, 92px, 0) scale(0.8); filter: blur(6px); }
+    }
+
+    @keyframes serpent-fade {
+      0% { opacity: 0.92; transform: scale(1) rotate(var(--rot, 0deg)); filter: blur(0px); }
+      38% { opacity: 0.18; transform: scale(0.98) rotate(var(--rot, 0deg)) translateY(8px); filter: blur(2px); }
+      100% { opacity: 0; transform: scale(0.94) rotate(var(--rot, 0deg)) translateY(24px); filter: blur(6px); }
+    }
+
+    @keyframes hero-settle {
+      0% { opacity: 0; transform: translateY(24px) scale(0.94); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes star-drift {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(24px); }
+    }
+
+    @keyframes frog-hero-bob {
+      0% { transform: translateX(-50%) translateY(0) scale(1); }
+      50% { transform: translateX(-50%) translateY(-8px) scale(1.02); }
+      100% { transform: translateX(-50%) translateY(0) scale(1); }
+    }
+
+    @keyframes holy-glow {
+      0% { transform: translateX(-50%) scale(0.92); opacity: 0.7; }
+      100% { transform: translateX(-50%) scale(1.08); opacity: 1; }
+    }
+
+    @keyframes beam-pulse {
+      0% { opacity: 0.45; transform: translateX(-50%) scaleY(0.94); }
+      100% { opacity: 0.95; transform: translateX(-50%) scaleY(1.04); }
+    }
+
+    @keyframes frog-hero-drop {
+      0% { transform: translateX(-50%) translateY(-220px) scale(0.72); opacity: 0; }
+      55% { transform: translateX(-50%) translateY(14px) scale(1.04); opacity: 1; }
+      100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+    }
+
+    @keyframes soft-blink {
+      0% { opacity: 0.45; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes rain-fall {
+      0% { transform: translateY(-12%) skewX(-10deg); }
+      100% { transform: translateY(12%) skewX(-10deg); }
+    }
+
+    @keyframes lightning-flash {
+      0% { opacity: 0; }
+      20% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes lightning-flash-strong {
+      0% { opacity: 0; }
+      18% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes dread-text {
+      0% { transform: translateY(0) translateX(0); }
+      100% { transform: translateY(-1px) translateX(2px); }
+    }
+
+    @keyframes splash-flicker {
+      0% { transform: translateY(0); opacity: 0.4; }
+      100% { transform: translateY(-4px); opacity: 0.95; }
+    }
+
+    @keyframes shell-shake {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      25% { transform: translate(6px, -5px) rotate(-0.3deg); }
+      50% { transform: translate(-7px, 5px) rotate(0.3deg); }
+      75% { transform: translate(5px, 4px) rotate(-0.2deg); }
+      100% { transform: translate(-4px, -5px) rotate(0.2deg); }
+    }
+
+    @keyframes flash-bang {
+      0% { opacity: 0.15; }
+      50% { opacity: 0.95; }
+      100% { opacity: 0.25; }
+    }
+
+    @keyframes warning-pulse {
+      0% { opacity: 0.35; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes score-jump {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-3px) scale(1.08); }
+    }
+
+    .snake-king-scene {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 55;
+      transition: opacity 180ms ease;
+    }
+
+    .snake-king-scene.visible {
+      opacity: 1;
+    }
+
+    .snake-king-alert {
+      position: absolute;
+      top: 12vh;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(54px, 9vw, 130px);
+      font-weight: 900;
+      letter-spacing: 0.24em;
+      color: #fffdfd;
+      text-shadow: 0 0 22px rgba(255, 60, 60, 1), 0 0 66px rgba(255, 255, 255, 0.55);
+      animation: panic-text 90ms steps(2, end) infinite;
+      white-space: nowrap;
+      opacity: 0;
+    }
+
+    .snake-king-scene.show-alert .snake-king-alert {
+      opacity: 1;
+    }
+
+    .snake-king {
+      position: absolute;
+      right: -70vw;
+      top: 58%;
+      width: min(1600px, 160vw);
+      height: min(900px, 90vh);
+      transform: translateY(-50%) scale(0.84);
+      filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.45));
+      opacity: 0;
+    }
+
+    .snake-king-scene.attack .snake-king {
+      opacity: 1;
+      animation: king-lunge 500ms cubic-bezier(0.18, 0.8, 0.18, 1) forwards;
+    }
+
+    .snake-king-frame {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    @keyframes panic-text {
+      0% { transform: translateX(-50%) scale(1); opacity: 0.82; }
+      100% { transform: translateX(-50%) scale(1.06); opacity: 1; }
+    }
+
+    @keyframes king-lunge {
+      0% { right: -70vw; transform: translateY(-50%) scale(0.84); }
+      38% { right: -18vw; transform: translateY(-50%) scale(1.02); }
+      72% { right: 12vw; transform: translateY(-50%) scale(1.18); }
+      100% { right: 52vw; transform: translateY(-50%) scale(1.5); }
+    }
+
+    @keyframes bite-sweep {
+      0% { right: -120%; }
+      100% { right: 18%; }
+    }
+
+    @media (max-width: 760px) {
+      .topbar {
+        flex-direction: column;
+      }
+
+      .stats {
+        justify-content: stretch;
+      }
+
+      .card {
+        flex: 1;
+      }
+
+      .frog-god-panel,
+      .reward-panel {
+        padding: 26px 18px 20px;
+        gap: 16px;
+      }
+
+      .frog-god-stage,
+      .reward-stage {
+        height: 250px;
+      }
+
+      .frog-god-action,
+      .reward-actions-shell {
+        width: 100%;
+        padding: 16px 14px 16px;
+      }
+
+      .reward-actions {
+        width: 100%;
+      }
+
+      .reward-button,
+      .reward-secondary,
+      .frog-god-cta {
+        width: 100%;
+      }
+
+      .reward-code-card,
+      .dream-card {
+        padding: 24px 18px 20px;
+      }
+    }
+
+    @media (min-width: 761px) and (max-width: 1366px) and (orientation: landscape) and (pointer: coarse) {
+      body {
+        padding: 12px;
+      }
+
+      .shell {
+        width: min(98vw, 1180px);
+        padding: 18px;
+      }
+
+      .topbar {
+        align-items: stretch;
+        gap: 12px;
+      }
+
+      .title h1 {
+        font-size: clamp(30px, 4vw, 44px);
+      }
+
+      .title p {
+        max-width: 560px;
+        font-size: 15px;
+      }
+
+      .card {
+        min-width: 104px;
+        padding: 10px 12px;
+      }
+
+      .card strong {
+        font-size: 20px;
+      }
+
+      .quick-actions {
+        margin-bottom: 10px;
+      }
+
+      canvas {
+        aspect-ratio: 16 / 8.5;
+      }
+
+      .overlay-panel {
+        max-width: 680px;
+        padding: 22px 22px 18px;
+      }
+
+      .mobile-controls.active {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 12px 18px;
+      }
+
+      .mobile-controls-label {
+        margin: 0;
+        text-align: left;
+      }
+
+      .mobile-pad {
+        justify-content: end;
+      }
+
+      .mobile-button {
+        width: 82px;
+        height: 56px;
+        border-radius: 18px;
+        font-size: 22px;
+      }
+
+      .frog-god-panel,
+      .reward-panel {
+        width: min(960px, 94vw);
+        padding: 28px 24px 24px;
+      }
+
+      .frog-god-stage,
+      .reward-stage {
+        height: 250px;
+      }
+
+      .reward-actions-shell {
+        width: min(700px, 100%);
+      }
+
+      .dream-card,
+      .reward-code-card {
+        width: min(620px, 82vw);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div class="title">
+        <h1>蛇口逃生OS</h1>
+        <p>你是一隻青蛙，要從蛇群穿行的濕地裡逃出去。吃稀有糖果會變大，但體型只會讓你更顯眼，碰到任何蛇都會失敗。</p>
+      </div>
+      <div class="stats">
+        <div class="card">
+          <span>得分</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="card">
+          <span>體型</span>
+          <strong id="size">1.0x</strong>
+        </div>
+        <div class="card">
+          <span>模式</span>
+          <strong id="modeLabel">普通</strong>
+        </div>
+        <div class="card">
+          <span>最高分</span>
+          <strong id="best">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="arena-wrap" id="arenaWrap">
+      <div class="quick-actions">
+        <button class="secondary" id="topRestartButton">重新開始</button>
+      </div>
+      <div class="bite-mask" aria-hidden="true"></div>
+      <canvas id="game" width="960" height="540" aria-label="蛇口逃生OS 遊戲畫布"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="overlay-panel">
+          <h2 id="overlayTitle">濕地生存開始前</h2>
+          <p id="overlayText">方向鍵、WASD 或下方觸控方向鍵控制青蛙移動。糖果極其稀有，大約每 100 條蛇才會換來 2 顆糖。蛇會在場地中穿行，你要找縫隙逃生，碰到任何蛇都會結束。</p>
+          <div class="modes">
+            <button class="mode-button active" id="normalMode">普通模式</button>
+            <button class="mode-button secondary" id="hardMode">困難模式</button>
+          </div>
+          <div class="controls">
+            <button class="primary" id="startButton">開始遊戲</button>
+            <button class="secondary" id="restartButton">重新開始</button>
+          </div>
+          <div class="hint">支援鍵盤與手機觸控方向鍵。困難模式裡蛇更快、軌跡更刁鑽、出現更頻繁。</div>
+        </div>
+      </div>
+      <div class="mobile-controls" id="mobileControls" aria-label="觸控方向鍵">
+        <div class="mobile-controls-label">觸控方向鍵</div>
+        <div class="mobile-pad">
+          <div class="mobile-pad-row">
+            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
+            <button class="mobile-button" type="button" data-code="ArrowUp" aria-label="向上">▲</button>
+            <button class="mobile-button spacer" type="button" tabindex="-1" aria-hidden="true"></button>
+          </div>
+          <div class="mobile-pad-row">
+            <button class="mobile-button" type="button" data-code="ArrowLeft" aria-label="向左">◀</button>
+            <button class="mobile-button" type="button" data-code="ArrowDown" aria-label="向下">▼</button>
+            <button class="mobile-button" type="button" data-code="ArrowRight" aria-label="向右">▶</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div class="snake-king-scene" id="snakeKingScene">
+    <div class="snake-king-alert">蛇王來了</div>
+    <div class="snake-king" aria-hidden="true">
+      <img class="snake-king-frame" id="snakeKingFrame" src="./assets/snake-king-seq/snake-king-frame-01.png" alt="snake king sequence">
+    </div>
+  </div>
+  <div class="blackout-screen" id="blackoutScreen"></div>
+  <div class="crash-screen" id="crashScreen">
+    <div>
+      <div class="crash-score" id="crashScore">你本次分數：1499</div>
+      <h2>你失敗了</h2>
+      <p>請重新挑戰</p>
+      <button class="retry-button" id="crashRestartButton">重新開始</button>
+    </div>
+  </div>
+  <div class="frog-god-scene" id="frogGodScene">
+    <div class="frog-god-stars"></div>
+    <div class="rain-layer"></div>
+    <div class="rain-splash"></div>
+    <div class="frog-god-panel">
+      <div class="frog-god-badge">FROG GOD RESCUE</div>
+      <div class="frog-god-stage">
+        <div class="frog-god-beam"></div>
+        <div class="frog-god-glow"></div>
+        <div class="frog-god">
+          <div class="frog-god-crown"></div>
+          <div class="frog-god-body">
+            <div class="frog-god-eye left"></div>
+            <div class="frog-god-eye right"></div>
+            <div class="frog-god-mouth"></div>
+          </div>
+          <div class="frog-god-arm left"></div>
+          <div class="frog-god-arm right">
+            <div class="frog-god-sword"></div>
+          </div>
+        </div>
+      </div>
+      <div class="frog-god-copy">
+        <h3 id="frogGodTitle">蛙神登場</h3>
+        <p id="frogGodText">已經秘密處決了可惡的蛇王，拯救了你的咖啡。</p>
+      </div>
+      <div class="frog-god-action">
+        <div class="frog-god-tip" id="frogGodTip">點擊頁面繼續</div>
+        <button class="frog-god-cta hidden" id="frogGodCta">獲取兌換碼</button>
+        <div class="frog-god-cta-sub hidden" id="frogGodCtaSub">點擊後生成領取線索</div>
+      </div>
+    </div>
+    <div class="dream-modal" id="dreamModal">
+      <div class="dream-card">
+        <h4>夢醒時分</h4>
+        <p>哈哈哈，這只是青蛙臨死前的黃粱一夢罷了。</p>
+        <button id="dreamRestartButton">重新醒來</button>
+      </div>
+    </div>
+  </div>
+  <div class="reward-scene" id="rewardScene">
+    <div class="reward-panel">
+      <div class="reward-badge">ULTIMATE REWARD</div>
+      <div class="reward-stage">
+        <div class="reward-burst"></div>
+        <div class="reward-slay-flash"></div>
+        <div class="reward-impact" aria-hidden="true">
+          <div class="reward-slash one"></div>
+          <div class="reward-slash two"></div>
+          <div class="reward-slash three"></div>
+        </div>
+        <div class="reward-serpents" aria-hidden="true">
+          <div class="reward-serpent one" style="--rot:-12deg;"></div>
+          <div class="reward-serpent two" style="--rot:16deg;"></div>
+          <div class="reward-serpent three" style="--rot:4deg;"></div>
+        </div>
+        <div class="reward-hero-frame">
+          <img class="reward-hero-image hidden" id="rewardHeroImage" src="./assets/frog-king-hero.png" alt="蛙王降臨">
+          <div class="reward-hero-fallback visible" id="rewardHeroFallback">
+            <div class="frog-god">
+              <div class="frog-god-crown"></div>
+              <div class="frog-god-body">
+                <div class="frog-god-eye left"></div>
+                <div class="frog-god-eye right"></div>
+                <div class="frog-god-mouth"></div>
+              </div>
+              <div class="frog-god-arm left"></div>
+              <div class="frog-god-arm right">
+                <div class="frog-god-sword"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="reward-copy">
+        <h3>蛙神降臨</h3>
+        <p>在 666 分時刻，蛙神已斬盡全場蛇群。你拿到了極品獎勵：咖啡。</p>
+      </div>
+      <div class="reward-actions-shell">
+        <div class="reward-actions">
+          <button class="reward-button" id="rewardCodeButton">獲取兌換碼</button>
+          <button class="reward-secondary" id="rewardRestartButton">繼續遊戲</button>
+        </div>
+        <div class="reward-helper">點擊後生成領取線索，記得保留當前頁面</div>
+      </div>
+      <div class="reward-modal" id="rewardModal">
+        <div class="reward-code-card">
+          <h4>兌換提示</h4>
+          <p>請拍照此頁面，到微信聯絡咩咩獲取咖啡獎勵。</p>
+          <div class="reward-code">FIDEHFHFW-0FED-WBBW-52620</div>
+          <button class="reward-secondary" id="rewardModalClose">我記住了</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const arenaWrap = document.getElementById("arenaWrap");
+    const scoreNode = document.getElementById("score");
+    const sizeNode = document.getElementById("size");
+    const modeLabelNode = document.getElementById("modeLabel");
+    const bestNode = document.getElementById("best");
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlayText = document.getElementById("overlayText");
+    const startButton = document.getElementById("startButton");
+    const restartButton = document.getElementById("restartButton");
+    const topRestartButton = document.getElementById("topRestartButton");
+    const normalModeButton = document.getElementById("normalMode");
+    const hardModeButton = document.getElementById("hardMode");
+    const mobileControls = document.getElementById("mobileControls");
+    const mobileButtons = Array.from(document.querySelectorAll(".mobile-button[data-code]"));
+    const snakeKingScene = document.getElementById("snakeKingScene");
+    const snakeKingFrame = document.getElementById("snakeKingFrame");
+    const blackoutScreen = document.getElementById("blackoutScreen");
+    const crashScreen = document.getElementById("crashScreen");
+    const crashScore = document.getElementById("crashScore");
+    const crashRestartButton = document.getElementById("crashRestartButton");
+    const frogGodScene = document.getElementById("frogGodScene");
+    const frogGodTitle = document.getElementById("frogGodTitle");
+    const frogGodText = document.getElementById("frogGodText");
+    const frogGodTip = document.getElementById("frogGodTip");
+    const frogGodCta = document.getElementById("frogGodCta");
+    const frogGodCtaSub = document.getElementById("frogGodCtaSub");
+    const dreamModal = document.getElementById("dreamModal");
+    const dreamRestartButton = document.getElementById("dreamRestartButton");
+    const rewardScene = document.getElementById("rewardScene");
+    const rewardModal = document.getElementById("rewardModal");
+    const rewardCodeButton = document.getElementById("rewardCodeButton");
+    const rewardRestartButton = document.getElementById("rewardRestartButton");
+    const rewardModalClose = document.getElementById("rewardModalClose");
+    const rewardHeroImage = document.getElementById("rewardHeroImage");
+    const rewardHeroFallback = document.getElementById("rewardHeroFallback");
+
+    const bestKey = "snake-mouth-escape-os-best";
+    const input = { left: false, right: false, up: false, down: false };
+    const snakeColors = ["#ff6464", "#f3c84c", "#b17cff", "#f7e06d"];
+    const snakeKingFrames = Array.from({ length: 100 }, (_, index) =>
+      `./assets/snake-king-seq-100/snake-king-frame-${String(index + 1).padStart(3, "0")}.png`
+    );
+    const modes = {
+      normal: {
+        label: "普通",
+        playerSpeed: 290,
+        snakeSpeedBase: 92,
+        snakeSpeedRamp: 0.35,
+        spawnInterval: 1.05,
+        minSnakeScale: 0.7,
+        maxSnakeScale: 1.45
+      },
+      hard: {
+        label: "困難",
+        playerSpeed: 305,
+        snakeSpeedBase: 162,
+        snakeSpeedRamp: 0.8,
+        spawnInterval: 0.68,
+        minSnakeScale: 0.9,
+        maxSnakeScale: 1.8
+      }
+    };
+
+    let selectedMode = "normal";
+    let lastTime = 0;
+    let spawnTimer = 0;
+    let snakesSpawned = 0;
+    let running = false;
+    let snakeKingTriggered = false;
+    let snakeKingWarning = false;
+    let snakeKingFrameTimer = null;
+    let frogGodStage = 1;
+    let blessedRunActive = false;
+    let rewardTriggered = false;
+
+    const state = {
+      score: 0,
+      size: 1,
+      best: Number(localStorage.getItem(bestKey) || 0),
+      frog: createFrog(),
+      snakes: [],
+      candies: [],
+      lilies: createLilies(14),
+      fireflies: createFireflies(80)
+    };
+
+    const hardModeTargetScore = 1500;
+
+    function updateMobileControlsVisibility() {
+      const isTouchDevice =
+        window.matchMedia("(pointer: coarse)").matches ||
+        window.matchMedia("(max-width: 1024px)").matches ||
+        navigator.maxTouchPoints > 0;
+      mobileControls.classList.toggle("active", isTouchDevice);
+    }
+
+    rewardHeroImage.addEventListener("load", () => {
+      rewardHeroImage.classList.remove("hidden");
+      rewardHeroFallback.classList.remove("visible");
+    });
+    rewardHeroImage.addEventListener("error", () => {
+      rewardHeroImage.classList.add("hidden");
+      rewardHeroFallback.classList.add("visible");
+    });
+
+    bestNode.textContent = String(state.best);
+    updateHud();
+
+    function createFrog() {
+      return {
+        x: canvas.width / 2,
+        y: canvas.height - 90,
+        radius: 24,
+        speed: modes[selectedMode].playerSpeed,
+        pulse: 0
+      };
+    }
+
+    function createLilies(count) {
+      return Array.from({ length: count }, () => ({
+        x: 40 + Math.random() * (canvas.width - 80),
+        y: 40 + Math.random() * (canvas.height - 80),
+        size: 18 + Math.random() * 28
+      }));
+    }
+
+    function createFireflies(count) {
+      return Array.from({ length: count }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 1,
+        speed: Math.random() * 18 + 8,
+        alpha: 0.2 + Math.random() * 0.5
+      }));
+    }
+
+    function resetGame() {
+      state.score = 0;
+      state.size = 1;
+      state.frog = createFrog();
+      state.snakes = [];
+      state.candies = [];
+      snakesSpawned = 0;
+      spawnTimer = 0;
+      lastTime = 0;
+      snakeKingTriggered = false;
+      snakeKingWarning = false;
+      rewardTriggered = false;
+      scoreNode.parentElement.classList.remove("alert");
+      updateHud();
+    }
+
+    function updateHud() {
+      scoreNode.textContent = String(Math.floor(state.score));
+      sizeNode.textContent = `${state.size.toFixed(1)}x`;
+      modeLabelNode.textContent = modes[selectedMode].label;
+      bestNode.textContent = String(state.best);
+    }
+
+    function setOverlay(title, text, visible) {
+      overlayTitle.textContent = title;
+      overlayText.textContent = text;
+      overlay.classList.toggle("hidden", !visible);
+    }
+
+    function updateModeButtons() {
+      const normalActive = selectedMode === "normal";
+      normalModeButton.className = normalActive ? "mode-button active" : "mode-button secondary";
+      hardModeButton.className = !normalActive ? "mode-button active" : "mode-button secondary";
+      updateHud();
+    }
+
+    function setMode(mode) {
+      selectedMode = mode;
+      updateModeButtons();
+      if (!running) {
+        state.frog = createFrog();
+        draw();
+      }
+      if (mode === "hard") {
+        setOverlay(
+          "困難模式提示",
+          "困難模式達到 1500 分，獎勵是一杯咖啡。聯絡咩咩領取。",
+          true
+        );
+      } else if (!running) {
+        setOverlay(
+          "濕地生存開始前",
+          "方向鍵、WASD 或下方觸控方向鍵控制青蛙移動。糖果極其稀有，大約每 100 條蛇才會換來 2 顆糖。蛇會在場地中穿行，你要找縫隙逃生，碰到任何蛇都會結束。",
+          true
+        );
+      }
+    }
+
+    function startGame() {
+      blessedRunActive = false;
+      beginRun();
+    }
+
+    function startBlessedRun() {
+      blessedRunActive = true;
+      beginRun();
+    }
+
+    function beginRun() {
+      resetGame();
+      document.body.classList.remove("warning-active");
+      document.body.classList.remove("king-flash");
+      document.body.classList.remove("crash-active");
+      arenaWrap.classList.remove("eaten");
+      snakeKingScene.classList.remove("show-alert", "attack", "visible");
+      blackoutScreen.classList.remove("visible");
+      snakeKingScene.classList.remove("visible");
+      crashScreen.classList.remove("visible");
+      frogGodScene.classList.remove("visible", "stage-two");
+      frogGodScene.classList.remove("dream-break");
+      frogGodCta.classList.add("hidden");
+      dreamModal.classList.remove("visible");
+      rewardScene.classList.remove("visible", "show-code");
+      frogGodStage = 1;
+      if (snakeKingFrameTimer) {
+        window.clearInterval(snakeKingFrameTimer);
+        snakeKingFrameTimer = null;
+      }
+      snakeKingFrame.src = snakeKingFrames[0];
+      crashScore.textContent = "你本次分數：1499";
+      running = true;
+      setOverlay("", "", false);
+      requestAnimationFrame(loop);
+    }
+
+    function triggerBlessedReward() {
+      rewardTriggered = true;
+      running = false;
+      state.score = Math.max(666, Math.floor(state.score));
+      state.snakes = [];
+      state.best = Math.max(state.best, Math.floor(state.score));
+      localStorage.setItem(bestKey, String(state.best));
+      updateHud();
+      rewardScene.classList.remove("show-code");
+      rewardScene.classList.add("visible");
+    }
+
+    function showFrogGodScene() {
+      crashScreen.classList.remove("visible");
+      frogGodScene.classList.add("visible");
+      frogGodScene.classList.remove("stage-two");
+      frogGodScene.classList.remove("dream-break");
+      frogGodTitle.textContent = "蛙神登場";
+      frogGodText.textContent = "已經秘密處決了可惡的蛇王，拯救了你的咖啡。";
+      frogGodTip.textContent = "點擊頁面繼續";
+      frogGodTip.classList.remove("hidden");
+      frogGodCta.classList.add("hidden");
+      frogGodCtaSub.classList.add("hidden");
+      frogGodStage = 1;
+    }
+
+    function advanceFrogGodScene() {
+      if (!frogGodScene.classList.contains("visible")) {
+        return;
+      }
+      if (frogGodStage === 1) {
+        frogGodStage = 2;
+        frogGodScene.classList.add("stage-two");
+        frogGodTitle.textContent = "獲取兌換券";
+        frogGodText.textContent = "獲取兌換券後在微信聯絡咩咩領取咖啡。蛙神已經把戰場清理乾淨了。";
+        frogGodTip.classList.add("hidden");
+        frogGodCta.classList.remove("hidden");
+        frogGodCtaSub.classList.remove("hidden");
+        return;
+      }
+      if (frogGodStage === 2) {
+        frogGodScene.classList.add("lightning");
+        frogGodCta.classList.add("hidden");
+        frogGodCtaSub.classList.add("hidden");
+        frogGodTip.classList.add("hidden");
+        frogGodStage = 3;
+        window.setTimeout(() => {
+          frogGodScene.classList.add("dream-break");
+        }, 360);
+        window.setTimeout(() => {
+          frogGodScene.classList.remove("lightning");
+        }, 1400);
+      }
+    }
+
+    function gameOver(reason) {
+      running = false;
+      state.best = Math.max(state.best, Math.floor(state.score));
+      localStorage.setItem(bestKey, String(state.best));
+      updateHud();
+      setOverlay(
+        "被蛇群包圍了",
+        `${reason}。本局得分 ${Math.floor(state.score)}，再試一次找出更穩的逃生路線。`,
+        true
+      );
+    }
+
+    function triggerSnakeKingWarning() {
+      snakeKingWarning = true;
+      document.body.classList.add("warning-active");
+      scoreNode.parentElement.classList.add("alert");
+      state.frog.pulse = 1.2;
+    }
+
+    function playSnakeKingSequence(startIndex = 0) {
+      let frameIndex = startIndex;
+      snakeKingFrame.src = snakeKingFrames[frameIndex];
+      if (snakeKingFrameTimer) {
+        window.clearInterval(snakeKingFrameTimer);
+      }
+      snakeKingFrameTimer = window.setInterval(() => {
+        frameIndex = Math.min(frameIndex + 1, snakeKingFrames.length - 1);
+        snakeKingFrame.src = snakeKingFrames[frameIndex];
+        if (frameIndex >= snakeKingFrames.length - 1) {
+          window.clearInterval(snakeKingFrameTimer);
+          snakeKingFrameTimer = null;
+        }
+      }, 32);
+    }
+
+    function triggerSnakeKing() {
+      snakeKingTriggered = true;
+      running = false;
+      state.score = Math.min(state.score, 1499);
+      crashScore.textContent = `你本次分數：${Math.floor(state.score)}`;
+      state.best = Math.max(state.best, Math.floor(state.score));
+      localStorage.setItem(bestKey, String(state.best));
+      updateHud();
+      setOverlay("", "", false);
+      document.body.classList.remove("warning-active");
+      scoreNode.parentElement.classList.remove("alert");
+      snakeKingScene.classList.add("visible");
+      document.body.classList.add("king-flash");
+      window.setTimeout(() => {
+        snakeKingScene.classList.add("show-alert");
+      }, 80);
+      window.setTimeout(() => {
+        playSnakeKingSequence(0);
+        snakeKingScene.classList.add("attack");
+        document.body.classList.remove("king-flash");
+        document.body.classList.add("crash-active");
+      }, 900);
+      window.setTimeout(() => {
+        arenaWrap.classList.add("eaten");
+      }, 900);
+      window.setTimeout(() => {
+        snakeKingScene.classList.remove("attack", "show-alert", "visible");
+        document.body.classList.remove("crash-active");
+        blackoutScreen.classList.add("visible");
+      }, 1420);
+      window.setTimeout(() => {
+        blackoutScreen.classList.remove("visible");
+        crashScreen.classList.add("visible");
+      }, 2420);
+    }
+
+    function spawnSnake() {
+      const mode = modes[selectedMode];
+      const edge = Math.floor(Math.random() * 4);
+      const scale = mode.minSnakeScale + Math.random() * (mode.maxSnakeScale - mode.minSnakeScale);
+      const radius = 16 * scale;
+      const speed = mode.snakeSpeedBase + Math.random() * 46 + snakesSpawned * mode.snakeSpeedRamp;
+      const direction = pickDirection(edge);
+      const snake = {
+        x: 0,
+        y: 0,
+        radius,
+        speed,
+        color: snakeColors[Math.floor(Math.random() * snakeColors.length)],
+        wiggle: Math.random() * Math.PI * 2,
+        drift: (Math.random() * 2 - 1) * 0.42,
+        vx: direction.x,
+        vy: direction.y
+      };
+
+      if (edge === 0) {
+        snake.x = Math.random() * canvas.width;
+        snake.y = -radius * 3;
+      } else if (edge === 1) {
+        snake.x = canvas.width + radius * 3;
+        snake.y = Math.random() * canvas.height;
+      } else if (edge === 2) {
+        snake.x = Math.random() * canvas.width;
+        snake.y = canvas.height + radius * 3;
+      } else {
+        snake.x = -radius * 3;
+        snake.y = Math.random() * canvas.height;
+      }
+
+      state.snakes.push(snake);
+      snakesSpawned += 1;
+
+      if (snakesSpawned % 50 === 0) {
+        spawnCandy();
+      }
+    }
+
+    function spawnCandy() {
+      state.candies.push({
+        x: 80 + Math.random() * (canvas.width - 160),
+        y: 80 + Math.random() * (canvas.height - 160),
+        radius: 11,
+        life: 10,
+        spin: Math.random() * Math.PI * 2
+      });
+    }
+
+    function pickDirection(edge) {
+      const spread = (Math.random() * 2 - 1) * 0.55;
+      if (edge === 0) return { x: spread, y: 1 };
+      if (edge === 1) return { x: -1, y: spread };
+      if (edge === 2) return { x: spread, y: -1 };
+      return { x: 1, y: spread };
+    }
+
+    function circleHit(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      const r = a.radius + b.radius;
+      return dx * dx + dy * dy <= r * r;
+    }
+
+    function eatCandy() {
+      state.score += 60;
+      state.size = Math.min(3.4, state.size + 0.18);
+      state.frog.radius = 24 * state.size;
+      state.frog.pulse = 1;
+      updateHud();
+      return false;
+    }
+
+    function calculateScore(delta) {
+      if (selectedMode === "hard") {
+        return state.score + delta * 41;
+      }
+      return state.score + delta * (12 + state.size * 2);
+    }
+
+    function update(delta) {
+      const mode = modes[selectedMode];
+      const frog = state.frog;
+      frog.speed = mode.playerSpeed + (state.size - 1) * 12;
+
+      const moveX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      const moveY = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+      const length = Math.hypot(moveX, moveY) || 1;
+      frog.x += (moveX / length) * frog.speed * delta;
+      frog.y += (moveY / length) * frog.speed * delta;
+      frog.x = Math.max(frog.radius, Math.min(canvas.width - frog.radius, frog.x));
+      frog.y = Math.max(frog.radius, Math.min(canvas.height - frog.radius, frog.y));
+      frog.pulse = Math.max(0, frog.pulse - delta * 1.6);
+
+      state.fireflies.forEach((dot) => {
+        dot.y -= dot.speed * delta;
+        if (dot.y < 0) {
+          dot.y = canvas.height;
+          dot.x = Math.random() * canvas.width;
+        }
+      });
+
+      state.score = calculateScore(delta);
+      if (selectedMode === "hard" && blessedRunActive) {
+        if (!rewardTriggered && state.score >= 666) {
+          triggerBlessedReward();
+          return;
+        }
+      } else if (selectedMode === "hard") {
+        if (!snakeKingWarning && state.score >= 1330) {
+          triggerSnakeKingWarning();
+        }
+        if (!snakeKingTriggered && state.score >= 1400) {
+          triggerSnakeKing();
+          return;
+        }
+      }
+      spawnTimer -= delta;
+      if (spawnTimer <= 0) {
+        spawnSnake();
+        spawnTimer = Math.max(0.22, mode.spawnInterval - snakesSpawned * 0.0032);
+      }
+
+      state.snakes = state.snakes.filter((snake) => {
+        snake.wiggle += delta * 7;
+        const sway = Math.sin(snake.wiggle) * 0.38 + snake.drift;
+        const perpX = -snake.vy;
+        const perpY = snake.vx;
+        snake.x += (snake.vx + perpX * sway) * snake.speed * delta;
+        snake.y += (snake.vy + perpY * sway) * snake.speed * delta;
+
+        const onscreen =
+          snake.x > -120 &&
+          snake.x < canvas.width + 120 &&
+          snake.y > -120 &&
+          snake.y < canvas.height + 120;
+
+        if (onscreen && circleHit(snake, frog)) {
+          gameOver("青蛙闖進了蛇口");
+          return false;
+        }
+        return onscreen;
+      });
+
+      state.candies = state.candies.filter((candy) => {
+        candy.life -= delta;
+        candy.spin += delta * 4;
+        if (circleHit(candy, frog)) {
+          return eatCandy();
+        }
+        return candy.life > 0;
+      });
+
+      updateHud();
+    }
+
+    function drawBackground() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      state.lilies.forEach((lily) => {
+        ctx.fillStyle = "rgba(78, 125, 58, 0.28)";
+        ctx.beginPath();
+        ctx.arc(lily.x, lily.y, lily.size, 0.15, Math.PI * 1.85);
+        ctx.lineTo(lily.x, lily.y);
+        ctx.fill();
+      });
+
+      ctx.strokeStyle = "rgba(177, 241, 146, 0.08)";
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += 48) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += 48) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      state.fireflies.forEach((dot) => {
+        ctx.fillStyle = `rgba(255, 249, 180, ${dot.alpha})`;
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawFrog() {
+      const frog = state.frog;
+      const shakeX = snakeKingWarning ? (Math.random() * 8 - 4) : 0;
+      const shakeY = snakeKingWarning ? (Math.random() * 8 - 4) : 0;
+      const fx = frog.x + shakeX;
+      const fy = frog.y + shakeY;
+      const glowRadius = frog.radius + 18 + frog.pulse * 18;
+      const glow = ctx.createRadialGradient(fx, fy, 4, fx, fy, glowRadius);
+      glow.addColorStop(0, "rgba(158,232,106,0.45)");
+      glow.addColorStop(1, "rgba(158,232,106,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(fx, fy, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#6dcf62";
+      ctx.beginPath();
+      ctx.ellipse(fx, fy, frog.radius, frog.radius * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#86e36f";
+      ctx.beginPath();
+      ctx.arc(fx - frog.radius * 0.34, fy - frog.radius * 0.56, frog.radius * 0.22, 0, Math.PI * 2);
+      ctx.arc(fx + frog.radius * 0.34, fy - frog.radius * 0.56, frog.radius * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(fx - frog.radius * 0.34, fy - frog.radius * 0.56, frog.radius * 0.08, 0, Math.PI * 2);
+      ctx.arc(fx + frog.radius * 0.34, fy - frog.radius * 0.56, frog.radius * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#2d6b27";
+      ctx.lineWidth = Math.max(2, frog.radius * 0.08);
+      ctx.beginPath();
+      ctx.arc(fx, fy + frog.radius * 0.02, frog.radius * 0.36, 0.1, Math.PI - 0.1);
+      ctx.stroke();
+    }
+
+    function drawSnake(snake) {
+      const angle = Math.atan2(snake.vy, snake.vx);
+      const segments = 5;
+      for (let i = segments; i >= 0; i -= 1) {
+        const t = i / segments;
+        const sway = Math.sin(snake.wiggle + i * 0.55) * snake.radius * 0.18;
+        const sx = snake.x - Math.cos(angle) * i * snake.radius * 0.55 + Math.cos(angle + Math.PI / 2) * sway;
+        const sy = snake.y - Math.sin(angle) * i * snake.radius * 0.55 + Math.sin(angle + Math.PI / 2) * sway;
+        const sr = snake.radius * (1 - i * 0.08);
+        ctx.fillStyle = snake.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = "#1b0d0d";
+      ctx.beginPath();
+      ctx.arc(snake.x + Math.cos(angle + 0.5) * snake.radius * 0.24, snake.y + Math.sin(angle + 0.5) * snake.radius * 0.24, snake.radius * 0.09, 0, Math.PI * 2);
+      ctx.arc(snake.x + Math.cos(angle - 0.5) * snake.radius * 0.24, snake.y + Math.sin(angle - 0.5) * snake.radius * 0.24, snake.radius * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawCandies() {
+      state.candies.forEach((candy) => {
+        ctx.save();
+        ctx.translate(candy.x, candy.y);
+        ctx.rotate(candy.spin);
+        ctx.fillStyle = "#ff8fd2";
+        ctx.beginPath();
+        ctx.arc(0, 0, candy.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffd6ef";
+        ctx.fillRect(-3, -candy.radius - 5, 6, candy.radius * 2 + 10);
+        ctx.fillRect(-candy.radius - 5, -3, candy.radius * 2 + 10, 6);
+        ctx.restore();
+      });
+    }
+
+    function draw() {
+      drawBackground();
+      drawCandies();
+      state.snakes.forEach(drawSnake);
+      drawFrog();
+    }
+
+    function loop(timestamp) {
+      if (!running) {
+        draw();
+        return;
+      }
+      if (!lastTime) {
+        lastTime = timestamp;
+      }
+      const delta = Math.min(0.033, (timestamp - lastTime) / 1000);
+      lastTime = timestamp;
+      update(delta);
+      draw();
+      if (running) {
+        requestAnimationFrame(loop);
+      }
+    }
+
+    function setDirection(code, pressed) {
+      if (code === "ArrowLeft" || code === "KeyA") input.left = pressed;
+      if (code === "ArrowRight" || code === "KeyD") input.right = pressed;
+      if (code === "ArrowUp" || code === "KeyW") input.up = pressed;
+      if (code === "ArrowDown" || code === "KeyS") input.down = pressed;
+    }
+
+    window.addEventListener("keydown", (event) => {
+      setDirection(event.code, true);
+      if (event.code === "Space" && !running) {
+        startGame();
+      }
+    });
+
+    window.addEventListener("keyup", (event) => {
+      setDirection(event.code, false);
+    });
+
+    mobileButtons.forEach((button) => {
+      const code = button.dataset.code;
+      const press = (event) => {
+        event.preventDefault();
+        button.classList.add("pressed");
+        setDirection(code, true);
+      };
+      const release = (event) => {
+        event.preventDefault();
+        button.classList.remove("pressed");
+        setDirection(code, false);
+      };
+      button.addEventListener("pointerdown", press);
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("pointerleave", release);
+    });
+
+    normalModeButton.addEventListener("click", () => setMode("normal"));
+    hardModeButton.addEventListener("click", () => {
+      const accepted = window.confirm("困難模式達到 1500 分，獎勵是一杯咖啡。聯絡咩咩領取。");
+      if (accepted) {
+        setMode("hard");
+      }
+    });
+    startButton.addEventListener("click", startGame);
+    restartButton.addEventListener("click", startGame);
+    topRestartButton.addEventListener("click", startGame);
+    crashRestartButton.addEventListener("click", showFrogGodScene);
+    frogGodScene.addEventListener("click", (event) => {
+      if (frogGodStage === 3) {
+        return;
+      }
+      if (event.target === frogGodCta) {
+        return;
+      }
+      advanceFrogGodScene();
+    });
+    frogGodCta.addEventListener("click", advanceFrogGodScene);
+    dreamRestartButton.addEventListener("click", startBlessedRun);
+    rewardCodeButton.addEventListener("click", () => {
+      rewardScene.classList.add("show-code");
+    });
+    rewardModalClose.addEventListener("click", () => {
+      rewardScene.classList.remove("show-code");
+    });
+    rewardRestartButton.addEventListener("click", startGame);
+
+    updateMobileControlsVisibility();
+    window.addEventListener("resize", updateMobileControlsVisibility);
+    updateModeButtons();
+    draw();
+  </script>
+</body>
+</html>
