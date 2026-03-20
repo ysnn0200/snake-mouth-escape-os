@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>蛇口逃生OS</title>
   <style>
     :root {
@@ -18,6 +18,16 @@
       --purple: #b17cff;
       --leaf: #5dc173;
       --brown: #3a291d;
+      --app-height: 100vh;
+      --shell-width: min(94vw, 1040px);
+      --shell-padding: 24px;
+      --canvas-aspect: 16 / 9;
+      --canvas-min-height: 0px;
+      --touch-dock-space: 0px;
+      --touch-button-width: 72px;
+      --touch-button-height: 62px;
+      --touch-button-radius: 20px;
+      --scene-bottom-gap: 24px;
     }
 
     * {
@@ -27,6 +37,8 @@
     body {
       margin: 0;
       min-height: 100vh;
+      min-height: 100svh;
+      min-height: var(--app-height);
       display: grid;
       place-items: center;
       padding: 20px;
@@ -79,8 +91,8 @@
     }
 
     .shell {
-      width: min(94vw, 1040px);
-      padding: 24px;
+      width: var(--shell-width);
+      padding: var(--shell-padding);
       border-radius: 30px;
       border: 1px solid var(--line);
       background: var(--panel);
@@ -192,9 +204,9 @@
     }
 
     .mobile-button {
-      width: 72px;
-      height: 62px;
-      border-radius: 20px;
+      width: var(--touch-button-width);
+      height: var(--touch-button-height);
+      border-radius: var(--touch-button-radius);
       border: 1px solid rgba(255, 255, 255, 0.14);
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
       color: #eef8df;
@@ -244,7 +256,8 @@
     canvas {
       display: block;
       width: 100%;
-      aspect-ratio: 16 / 9;
+      aspect-ratio: var(--canvas-aspect);
+      min-height: var(--canvas-min-height);
       border-radius: 22px;
       border: 1px solid rgba(177, 241, 146, 0.2);
       background: linear-gradient(180deg, rgba(18, 45, 22, 0.92), rgba(8, 18, 10, 0.98));
@@ -1225,6 +1238,255 @@
       pointer-events: auto;
     }
 
+    body.is-touch-device {
+      display: block;
+      min-height: var(--app-height);
+      padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        calc(var(--touch-dock-space) + 22px + env(safe-area-inset-bottom))
+        10px;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    body.is-touch-device .shell {
+      width: var(--shell-width);
+      padding: var(--shell-padding);
+      margin: 0 auto;
+    }
+
+    body.is-touch-device .mobile-controls.active {
+      position: fixed;
+      left: 10px;
+      right: 10px;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      z-index: 72;
+      margin-top: 0;
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(8, 22, 12, 0.92), rgba(4, 12, 7, 0.96));
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.34);
+    }
+
+    body.is-touch-device .frog-god-scene,
+    body.is-touch-device .reward-scene {
+      padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        calc(var(--scene-bottom-gap) + env(safe-area-inset-bottom))
+        10px;
+      overflow: auto;
+    }
+
+    body.is-touch-device .dream-modal {
+      position: fixed;
+      inset:
+        max(10px, env(safe-area-inset-top))
+        10px
+        calc(var(--scene-bottom-gap) + env(safe-area-inset-bottom))
+        10px;
+      padding: 0;
+      align-items: center;
+    }
+
+    body.is-touch-device .dream-card,
+    body.is-touch-device .reward-code-card {
+      max-height: min(82svh, 720px);
+      overflow: auto;
+    }
+
+    body.is-phone .topbar,
+    body.is-tablet.is-portrait .topbar {
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    body.is-phone .title h1,
+    body.is-tablet.is-portrait .title h1 {
+      font-size: clamp(30px, 12vw, 54px);
+    }
+
+    body.is-phone .title p,
+    body.is-tablet.is-portrait .title p {
+      max-width: none;
+      font-size: 17px;
+      line-height: 1.6;
+    }
+
+    body.is-phone .stats,
+    body.is-tablet.is-portrait .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      gap: 12px;
+      justify-content: stretch;
+    }
+
+    body.is-phone .card,
+    body.is-tablet.is-portrait .card {
+      min-width: 0;
+      width: 100%;
+      min-height: 124px;
+      padding: 14px 16px;
+    }
+
+    body.is-phone .card strong,
+    body.is-tablet.is-portrait .card strong {
+      font-size: clamp(24px, 8vw, 36px);
+    }
+
+    body.is-phone .quick-actions,
+    body.is-tablet.is-portrait .quick-actions {
+      justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+
+    body.is-phone .quick-actions button,
+    body.is-tablet.is-portrait .quick-actions button {
+      min-width: 140px;
+      padding: 12px 18px;
+    }
+
+    body.is-phone .arena-wrap,
+    body.is-tablet.is-portrait .arena-wrap {
+      margin-top: 4px;
+    }
+
+    body.is-phone .overlay,
+    body.is-tablet.is-portrait .overlay {
+      position: fixed;
+      inset:
+        max(10px, env(safe-area-inset-top))
+        10px
+        calc(var(--touch-dock-space) + 14px + env(safe-area-inset-bottom))
+        10px;
+      z-index: 70;
+      align-items: start;
+      overflow: auto;
+      padding: 0;
+      background: rgba(3, 10, 5, 0.66);
+      backdrop-filter: blur(8px);
+    }
+
+    body.is-phone .overlay-panel,
+    body.is-tablet.is-portrait .overlay-panel {
+      width: 100%;
+      max-width: none;
+      margin: auto 0;
+      padding: 22px 18px 18px;
+      border-radius: 24px;
+      max-height: 100%;
+      overflow: auto;
+    }
+
+    body.is-phone .controls,
+    body.is-phone .modes,
+    body.is-tablet.is-portrait .controls,
+    body.is-tablet.is-portrait .modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    body.is-phone .controls button,
+    body.is-phone .modes button,
+    body.is-tablet.is-portrait .controls button,
+    body.is-tablet.is-portrait .modes button {
+      width: 100%;
+      min-height: 54px;
+    }
+
+    body.is-phone .frog-god-panel,
+    body.is-phone .reward-panel,
+    body.is-tablet.is-portrait .frog-god-panel,
+    body.is-tablet.is-portrait .reward-panel {
+      width: 100%;
+      min-height: calc(var(--app-height) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      padding: 22px 16px 18px;
+      gap: 16px;
+      border-radius: 24px;
+    }
+
+    body.is-phone .frog-god-stage,
+    body.is-phone .reward-stage,
+    body.is-tablet.is-portrait .frog-god-stage,
+    body.is-tablet.is-portrait .reward-stage {
+      width: 100%;
+      height: 240px;
+      border-radius: 20px;
+    }
+
+    body.is-phone .frog-god-action,
+    body.is-phone .reward-actions-shell,
+    body.is-tablet.is-portrait .frog-god-action,
+    body.is-tablet.is-portrait .reward-actions-shell {
+      width: 100%;
+      padding: 14px 12px 16px;
+      border-radius: 20px;
+    }
+
+    body.is-phone .reward-actions,
+    body.is-tablet.is-portrait .reward-actions {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    body.is-phone .reward-button,
+    body.is-phone .reward-secondary,
+    body.is-phone .frog-god-cta,
+    body.is-tablet.is-portrait .reward-button,
+    body.is-tablet.is-portrait .reward-secondary,
+    body.is-tablet.is-portrait .frog-god-cta {
+      width: 100%;
+      min-height: 54px;
+    }
+
+    body.is-phone .reward-code-card,
+    body.is-phone .dream-card,
+    body.is-tablet.is-portrait .reward-code-card,
+    body.is-tablet.is-portrait .dream-card {
+      width: 100%;
+      max-width: none;
+      padding: 24px 18px 20px;
+      border-radius: 22px;
+    }
+
+    body.is-phone .frog-god-copy h3,
+    body.is-phone .reward-copy h3,
+    body.is-tablet.is-portrait .frog-god-copy h3,
+    body.is-tablet.is-portrait .reward-copy h3 {
+      font-size: clamp(28px, 12vw, 52px);
+      line-height: 1.08;
+    }
+
+    body.is-phone .frog-god-copy p,
+    body.is-phone .reward-copy p,
+    body.is-phone .dream-card p,
+    body.is-tablet.is-portrait .frog-god-copy p,
+    body.is-tablet.is-portrait .reward-copy p,
+    body.is-tablet.is-portrait .dream-card p {
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    body.is-touch-device.is-landscape .mobile-controls.active {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px 18px;
+    }
+
+    body.is-touch-device.is-landscape .mobile-controls-label {
+      margin: 0;
+      text-align: left;
+    }
+
+    body.is-touch-device.is-landscape .mobile-pad {
+      justify-content: end;
+    }
+
     .reward-scene.visible .reward-slay-flash {
       animation: reward-slay 1200ms ease-out 1 both;
     }
@@ -1534,48 +1796,288 @@
     }
 
     @media (max-width: 760px) {
+      body {
+        display: block;
+        min-height: 100svh;
+        padding:
+          max(10px, env(safe-area-inset-top))
+          10px
+          calc(112px + env(safe-area-inset-bottom))
+          10px;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      .shell {
+        width: 100%;
+        padding: 14px;
+        border-radius: 24px;
+      }
+
       .topbar {
         flex-direction: column;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .title h1 {
+        font-size: clamp(30px, 12vw, 54px);
+      }
+
+      .title p {
+        max-width: none;
+        font-size: 17px;
+        line-height: 1.6;
       }
 
       .stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        gap: 12px;
         justify-content: stretch;
       }
 
       .card {
         flex: 1;
+        min-width: 0;
+        width: 100%;
+        min-height: 124px;
+        padding: 14px 16px;
+      }
+
+      .card span {
+        font-size: 12px;
+      }
+
+      .card strong {
+        font-size: clamp(24px, 8vw, 36px);
+      }
+
+      .quick-actions {
+        justify-content: flex-end;
+        margin-bottom: 12px;
+      }
+
+      .quick-actions button {
+        min-width: 140px;
+        padding: 12px 18px;
+      }
+
+      .arena-wrap {
+        margin-top: 4px;
+      }
+
+      canvas {
+        aspect-ratio: 4 / 5;
+        min-height: 420px;
+      }
+
+      .overlay {
+        position: fixed;
+        inset:
+          max(10px, env(safe-area-inset-top))
+          10px
+          calc(108px + env(safe-area-inset-bottom))
+          10px;
+        z-index: 70;
+        align-items: start;
+        overflow: auto;
+        padding: 0;
+        background: rgba(3, 10, 5, 0.66);
+        backdrop-filter: blur(8px);
+      }
+
+      .overlay-panel {
+        width: 100%;
+        max-width: none;
+        margin: auto 0;
+        padding: 22px 18px 18px;
+        border-radius: 24px;
+        max-height: 100%;
+        overflow: auto;
+      }
+
+      .overlay h2 {
+        font-size: clamp(28px, 12vw, 48px);
+        line-height: 1.06;
+      }
+
+      .overlay p {
+        font-size: 17px;
+        line-height: 1.75;
+      }
+
+      .controls,
+      .modes {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .controls button,
+      .modes button {
+        width: 100%;
+        min-height: 54px;
+      }
+
+      .hint {
+        margin-top: 12px;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .mobile-controls {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        z-index: 72;
+        margin-top: 0;
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(8, 22, 12, 0.92), rgba(4, 12, 7, 0.96));
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.34);
+      }
+
+      .mobile-controls-label {
+        margin-bottom: 10px;
+        font-size: 11px;
+      }
+
+      .mobile-pad {
+        gap: 8px;
+      }
+
+      .mobile-pad-row {
+        gap: 8px;
+      }
+
+      .mobile-button {
+        width: min(22vw, 78px);
+        height: 58px;
+        border-radius: 18px;
+        font-size: 22px;
+      }
+
+      .snake-king {
+        padding: 20px 12px;
+      }
+
+      .crash-screen h2 {
+        line-height: 0.95;
+      }
+
+      .crash-screen p {
+        line-height: 1.5;
+      }
+
+      .frog-god-scene,
+      .reward-scene {
+        padding:
+          max(10px, env(safe-area-inset-top))
+          10px
+          calc(18px + env(safe-area-inset-bottom))
+          10px;
+        overflow: auto;
       }
 
       .frog-god-panel,
       .reward-panel {
-        padding: 26px 18px 20px;
+        width: 100%;
+        min-height: calc(100svh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        padding: 22px 16px 18px;
         gap: 16px;
+        border-radius: 24px;
+      }
+
+      .frog-god-badge,
+      .reward-badge {
+        font-size: 12px;
+        letter-spacing: 0.1em;
       }
 
       .frog-god-stage,
       .reward-stage {
-        height: 250px;
+        width: 100%;
+        height: 240px;
+        border-radius: 20px;
       }
 
       .frog-god-action,
       .reward-actions-shell {
         width: 100%;
-        padding: 16px 14px 16px;
+        padding: 14px 12px 16px;
+        border-radius: 20px;
       }
 
       .reward-actions {
         width: 100%;
+        flex-direction: column;
       }
 
       .reward-button,
       .reward-secondary,
       .frog-god-cta {
         width: 100%;
+        min-height: 54px;
       }
 
       .reward-code-card,
       .dream-card {
+        width: 100%;
+        max-width: none;
         padding: 24px 18px 20px;
+        border-radius: 22px;
+      }
+
+      .frog-god-copy h3,
+      .reward-copy h3 {
+        font-size: clamp(28px, 12vw, 52px);
+        line-height: 1.08;
+      }
+
+      .frog-god-copy p,
+      .reward-copy p,
+      .dream-card p {
+        font-size: 17px;
+        line-height: 1.75;
+      }
+
+      .reward-copy {
+        gap: 10px;
+      }
+
+      .reward-helper,
+      .frog-god-tip,
+      .frog-god-cta-sub {
+        line-height: 1.6;
+      }
+
+      .dream-modal {
+        position: fixed;
+        inset:
+          max(10px, env(safe-area-inset-top))
+          10px
+          calc(18px + env(safe-area-inset-bottom))
+          10px;
+        padding: 0;
+        align-items: center;
+      }
+
+      .dream-card,
+      .reward-code-card {
+        max-height: min(82svh, 720px);
+        overflow: auto;
+      }
+
+      .reward-modal {
+        padding: 16px;
+      }
+
+      .reward-code {
+        font-size: clamp(15px, 4.6vw, 20px);
+        word-break: break-all;
       }
     }
 
@@ -1939,10 +2441,59 @@
     const hardModeTargetScore = 1500;
 
     function updateMobileControlsVisibility() {
+      const viewportWidth = Math.round(window.visualViewport?.width || window.innerWidth);
+      const viewportHeight = Math.round(window.visualViewport?.height || window.innerHeight);
       const isTouchDevice =
         window.matchMedia("(pointer: coarse)").matches ||
-        window.matchMedia("(max-width: 1024px)").matches ||
         navigator.maxTouchPoints > 0;
+      const isPortrait = viewportHeight >= viewportWidth;
+      const longestSide = Math.max(viewportWidth, viewportHeight);
+      const isTablet = isTouchDevice && longestSide >= 900;
+      const isPhone = isTouchDevice && !isTablet;
+
+      document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+      document.documentElement.style.setProperty(
+        "--shell-width",
+        isPhone ? "calc(100vw - 20px)" : isTablet && isPortrait ? "min(96vw, 920px)" : isTablet ? "min(98vw, 1180px)" : "min(94vw, 1040px)"
+      );
+      document.documentElement.style.setProperty(
+        "--shell-padding",
+        isPhone ? "14px" : isTablet ? "18px" : "24px"
+      );
+      document.documentElement.style.setProperty(
+        "--canvas-aspect",
+        isPhone && isPortrait ? "4 / 5" : isTablet && isPortrait ? "10 / 12" : "16 / 9"
+      );
+      document.documentElement.style.setProperty(
+        "--canvas-min-height",
+        isPhone && isPortrait ? "420px" : isTablet && isPortrait ? "560px" : "0px"
+      );
+      document.documentElement.style.setProperty(
+        "--touch-dock-space",
+        isTouchDevice ? `${isPhone ? (isPortrait ? 136 : 108) : (isPortrait ? 124 : 92)}px` : "0px"
+      );
+      document.documentElement.style.setProperty(
+        "--touch-button-width",
+        isPhone ? "min(22vw, 78px)" : isTablet ? "82px" : "72px"
+      );
+      document.documentElement.style.setProperty(
+        "--touch-button-height",
+        isPhone ? "58px" : isTablet ? "56px" : "62px"
+      );
+      document.documentElement.style.setProperty(
+        "--touch-button-radius",
+        isPhone || isTablet ? "18px" : "20px"
+      );
+      document.documentElement.style.setProperty(
+        "--scene-bottom-gap",
+        isTouchDevice ? (isPhone ? "18px" : "20px") : "24px"
+      );
+
+      document.body.classList.toggle("is-touch-device", isTouchDevice);
+      document.body.classList.toggle("is-phone", isPhone);
+      document.body.classList.toggle("is-tablet", isTablet);
+      document.body.classList.toggle("is-portrait", isPortrait);
+      document.body.classList.toggle("is-landscape", !isPortrait);
       mobileControls.classList.toggle("active", isTouchDevice);
     }
 
@@ -2568,6 +3119,9 @@
 
     updateMobileControlsVisibility();
     window.addEventListener("resize", updateMobileControlsVisibility);
+    window.addEventListener("orientationchange", updateMobileControlsVisibility);
+    window.visualViewport?.addEventListener("resize", updateMobileControlsVisibility);
+    window.visualViewport?.addEventListener("scroll", updateMobileControlsVisibility);
     updateModeButtons();
     draw();
   </script>
