@@ -1131,6 +1131,7 @@ function positionConnectionDelete() {
   const y = Math.max(72, Math.min(window.innerHeight - margin, client.y));
   els.connectionDeleteBtn.style.left = `${x}px`;
   els.connectionDeleteBtn.style.top = `${y}px`;
+  els.connectionDeleteBtn.style.setProperty("--control-scale", String(Math.max(0.54, Math.min(1, Math.sqrt(state.zoom)))));
 }
 
 function showConnectionDelete() {

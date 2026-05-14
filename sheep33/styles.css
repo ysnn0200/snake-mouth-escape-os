@@ -688,6 +688,7 @@ button {
 }
 
 .connection-cancel {
+  --control-scale: 1;
   position: fixed;
   z-index: 46;
   display: none;
@@ -701,7 +702,7 @@ button {
   background: color-mix(in srgb, var(--panel) 88%, transparent);
   box-shadow: 0 14px 34px color-mix(in srgb, #000 16%, transparent);
   backdrop-filter: blur(18px);
-  transform: translate(-50%, -128%) scale(.96);
+  transform: translate(-50%, -128%) scale(calc(var(--control-scale) * .96));
   opacity: 0;
   transition:
     opacity 150ms ease,
@@ -713,13 +714,13 @@ button {
 .connection-cancel.open {
   display: inline-flex;
   opacity: 1;
-  transform: translate(-50%, -128%) scale(1);
+  transform: translate(-50%, -128%) scale(var(--control-scale));
 }
 
 .connection-cancel:hover {
   background: color-mix(in srgb, var(--danger) 10%, var(--panel));
   box-shadow: 0 18px 42px color-mix(in srgb, #000 22%, transparent);
-  transform: translate(-50%, -128%) scale(1.03);
+  transform: translate(-50%, -128%) scale(calc(var(--control-scale) * 1.03));
 }
 
 .connection-cancel kbd {
