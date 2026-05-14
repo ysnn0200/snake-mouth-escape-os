@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sheep33 官方网站/无限咩-干净整洁的全能无限画布</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-label="无限咩图标">🐏</span>
+        <span>无限咩</span>
+      </div>
+
+      <div class="project-controls" aria-label="项目分类">
+        <select id="projectSelect" title="选择项目"></select>
+        <button class="icon-button" id="addProjectBtn" title="添加项目" aria-label="添加项目">+</button>
+      </div>
+
+      <div class="tool-area" aria-label="画布工具">
+        <div class="toolstrip primary-tools">
+          <button class="tool-button" id="uploadBtn" title="上传图片、视频、音频、PDF、Office、压缩包等文件">
+            <span class="icon">↑</span>
+            <span>上传</span>
+          </button>
+          <input
+            id="fileInput"
+            type="file"
+            multiple
+            hidden
+            accept="image/*,video/*,audio/*,.pdf,.txt,.md,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.7z,.csv,.json"
+          />
+          <button class="tool-button" id="textBtn" title="创建文字框">
+            <span class="icon">T</span>
+            <span>文字</span>
+          </button>
+          <button class="tool-button" id="emojiBtn" title="添加表情贴纸">
+            <span class="icon">☺</span>
+            <span>表情</span>
+          </button>
+          <button class="tool-button" id="lineBtn" title="画线；画完后长按不松手可自动拉直">
+            <span class="icon">╱</span>
+            <span>画线</span>
+          </button>
+          <button class="tool-button" id="eraserBtn" title="涂抹擦除线条和图形">
+            <span class="icon">⌁</span>
+            <span>涂抹</span>
+          </button>
+          <button class="icon-button" id="themeBtn" title="切换白底/黑底" aria-label="切换白底/黑底">◐</button>
+        </div>
+
+        <div class="toolstrip view-actions">
+          <button class="icon-button" id="undoBtn" title="撤回" aria-label="撤回">↶</button>
+          <button class="icon-button" id="zoomOutBtn" title="缩小" aria-label="缩小">−</button>
+          <output id="zoomLabel">100%</output>
+          <button class="icon-button" id="zoomInBtn" title="放大" aria-label="放大">+</button>
+          <button class="icon-button" id="homeBtn" title="回到中心" aria-label="回到中心">⌂</button>
+          <button class="icon-button" id="locateBtn" title="定位到当前项目内容" aria-label="定位到当前项目内容">◎</button>
+          <button class="icon-button" id="deleteBtn" title="删除选中项" aria-label="删除选中项">⌫</button>
+          <button class="icon-button danger" id="clearBtn" title="清空画布" aria-label="清空画布">×</button>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <span class="status" id="statusText">拖拽文件到画布，或粘贴图片/文字/表情包</span>
+        <button class="icon-button account-entry" id="accountBtn" title="个人中心" aria-label="个人中心">👤</button>
+      </div>
+    </header>
+
+    <main class="viewport" id="viewport" tabindex="0" aria-label="无限画布">
+      <section class="surface" id="surface"></section>
+      <div class="hint" id="dropHint">
+        <strong>松开即可放入画布</strong>
+        <span>支持常见图片、视频、音频、文档和压缩包</span>
+      </div>
+    </main>
+
+    <div class="emoji-popover" id="emojiPopover" aria-label="表情贴纸">
+      <div class="emoji-tabs" id="emojiTabs" aria-label="表情分类"></div>
+      <div class="emoji-grid" id="emojiGrid"></div>
+      <div class="emoji-pager">
+        <button id="emojiPrevBtn" title="上一页">‹</button>
+        <output id="emojiPageLabel">1 / 1</output>
+        <button id="emojiNextBtn" title="下一页">›</button>
+      </div>
+    </div>
+
+    <div class="tool-popover line-options" id="lineOptions" aria-label="画线选项">
+      <div class="popover-title">画线</div>
+      <div class="color-strip" id="colorStrip" aria-label="画笔颜色">
+        <button class="color-swatch active" data-color="#0f5bd7" style="--swatch: #0f5bd7" title="蓝色"></button>
+        <button class="color-swatch" data-color="#d92d20" style="--swatch: #d92d20" title="红色"></button>
+        <button class="color-swatch" data-color="#12b76a" style="--swatch: #12b76a" title="绿色"></button>
+        <button class="color-swatch" data-color="#f79009" style="--swatch: #f79009" title="橙色"></button>
+        <button class="color-swatch" data-color="#7a5af8" style="--swatch: #7a5af8" title="紫色"></button>
+        <button class="color-swatch" data-color="#111827" style="--swatch: #111827" title="黑色"></button>
+        <button class="color-swatch" data-color="#ffffff" style="--swatch: #ffffff" title="白色"></button>
+      </div>
+      <div class="line-preview">
+        <svg viewBox="0 0 180 42" aria-hidden="true">
+          <path id="linePreviewPath" d="M12 28 C45 7, 82 39, 116 18 S158 16, 168 29" />
+        </svg>
+      </div>
+    </div>
+
+    <div class="tool-popover text-options" id="textOptions" aria-label="文字选项">
+      <div class="popover-title">文字</div>
+      <select id="textFontSelect" title="字体">
+        <option value="Microsoft YaHei, PingFang SC, Segoe UI, Arial, sans-serif">雅黑 / 苹方</option>
+        <option value="SimSun, Songti SC, serif">宋体</option>
+        <option value="KaiTi, Kaiti SC, serif">楷体</option>
+        <option value="Georgia, Times New Roman, serif">Serif</option>
+        <option value="Consolas, Menlo, monospace">Mono</option>
+      </select>
+      <div class="color-strip" id="textColorStrip" aria-label="文字颜色">
+        <button class="color-swatch active" data-color="#16181d" style="--swatch: #16181d" title="黑色"></button>
+        <button class="color-swatch" data-color="#0f5bd7" style="--swatch: #0f5bd7" title="蓝色"></button>
+        <button class="color-swatch" data-color="#d92d20" style="--swatch: #d92d20" title="红色"></button>
+        <button class="color-swatch" data-color="#12b76a" style="--swatch: #12b76a" title="绿色"></button>
+        <button class="color-swatch" data-color="#7a5af8" style="--swatch: #7a5af8" title="紫色"></button>
+      </div>
+      <button class="popover-action" id="addTextFromOptionsBtn">添加文字框</button>
+    </div>
+
+    <div class="account-panel" id="accountPanel" aria-label="账号管理">
+      <div class="account-card">
+        <button class="account-close" id="accountCloseBtn" title="关闭" aria-label="关闭">×</button>
+        <h2>账号管理</h2>
+        <div class="account-tabs">
+          <button class="active" data-account-tab="register">注册</button>
+          <button data-account-tab="login">登录</button>
+          <button data-account-tab="recover">找回</button>
+        </div>
+        <label>
+          <span>邮箱</span>
+          <input id="accountEmail" type="email" placeholder="name@example.com" />
+        </label>
+        <label class="account-password-row">
+          <span>密码</span>
+          <input id="accountPassword" type="password" placeholder="至少 8 位" />
+        </label>
+        <label>
+          <span>验证码</span>
+          <div class="code-row">
+            <input id="accountCode" type="text" inputmode="numeric" placeholder="6 位验证码" />
+            <button id="sendCodeBtn">发送验证码</button>
+          </div>
+        </label>
+        <button class="account-submit" id="accountSubmitBtn">创建账号</button>
+        <p>当前仅为账号 UI 预留，邮箱验证码、注册、找回功能后续接入。</p>
+      </div>
+    </div>
+
+    <div class="app-dialog-layer" id="appDialogLayer" aria-hidden="true">
+      <section class="app-dialog-card" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+        <button class="app-dialog-close" id="appDialogCloseBtn" title="关闭" aria-label="关闭">×</button>
+        <h2 id="appDialogTitle">确认操作</h2>
+        <p id="appDialogMessage"></p>
+        <input id="appDialogInput" class="app-dialog-input" />
+        <div class="app-dialog-actions">
+          <button id="appDialogCancelBtn" class="app-dialog-cancel">取消</button>
+          <button id="appDialogConfirmBtn" class="app-dialog-confirm">确定</button>
+        </div>
+      </section>
+    </div>
+
+    <template id="itemTemplate">
+      <article class="canvas-item" tabindex="0">
+        <button class="move-handle" title="拖动移动" aria-label="拖动移动">✥</button>
+        <button class="connector-handle" title="拖拽连接到其他项目框" aria-label="拖拽连接到其他项目框">•••</button>
+        <div class="item-hover-tools">
+          <input class="item-name-input" title="重命名项目框" />
+          <button class="item-note-btn" title="备注解释">备注</button>
+        </div>
+        <div class="item-note"></div>
+        <div class="item-note-popover">
+          <textarea class="item-note-input" placeholder="写一点解释，鼠标移到项目框时可查看"></textarea>
+          <div class="item-note-actions">
+            <button class="item-note-save">保存</button>
+            <button class="item-note-cancel">关闭</button>
+          </div>
+        </div>
+        <div class="item-content"></div>
+        <div class="item-meta"></div>
+        <button class="resize-handle" title="拖动缩放" aria-label="拖动缩放"></button>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
