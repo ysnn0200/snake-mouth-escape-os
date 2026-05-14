@@ -124,6 +124,15 @@
     };
   }
 
+  function normalizeClosedCorners(corners, maxDim) {
+    if (corners.length < 4) return corners;
+    const normalized = corners.slice();
+    if (distance(normalized[0], normalized[normalized.length - 1]) < maxDim * 0.18) {
+      normalized.pop();
+    }
+    return normalized;
+  }
+
   function contextFrom(points) {
     const bounds = boundsOf(points);
     const maxDim = Math.max(bounds.w, bounds.h);
@@ -135,8 +144,8 @@
     const closedLoose = endpointDistance < maxDim * 0.46;
     const smoothed = smoothPoints(points);
     const simplifiedOpen = simplifyPoints(smoothed, Math.max(4, maxDim * 0.03));
-    const openless = closed ? points.slice(0, -1) : points;
-    const simplifiedClosed = simplifyPoints(openless, Math.max(8, maxDim * 0.055));
+    const openless = closedLoose ? points.slice(0, -1) : points;
+    const simplifiedClosed = normalizeClosedCorners(simplifyPoints(openless, Math.max(8, maxDim * 0.055)), maxDim);
     return {
       points,
       bounds,
@@ -235,12 +244,15 @@
 
   function recognizeTriangle(ctx) {
     if (ctx.corners !== 3 || ctx.aspect < 0.32 || ctx.aspect > 2.6) return null;
+    const radial = radialStats(ctx);
+    if (radial.variation < 0.035) return null;
     return { label: "三角形", shape: shapeBounds(ctx.bounds, "triangle"), straight: false };
   }
 
   function recognizeHeart(ctx) {
     const { bounds, points, aspect } = ctx;
     if (aspect < 0.62 || aspect > 1.48 || ctx.maxDim < 38) return null;
+    if (radialStats(ctx).variation < 0.055) return null;
 
     const bottom = points.reduce((best, point) => point.y > best.y ? point : best, points[0]);
     const bottomCentered = Math.abs(bottom.x - bounds.cx) < bounds.w * 0.28;
@@ -256,7 +268,25 @@
     const topNotch = middleNotchY > Math.min(leftTop, rightTop) + bounds.h * 0.14;
     const pointyBottom = points.filter((point) => point.y > bounds.maxY - bounds.h * 0.13).length < points.length * 0.24;
     const endpointNearBottom = ctx.first.y > bounds.cy && ctx.last.y > bounds.cy;
-    if (!topNotch || !pointyBottom || (!ctx.closedLoose && !endpointNearBottom)) return null;
+    const classicHeart = topNotch && pointyBottom;
+
+    const top = heartPoints.reduce((best, point) => point.y < best.y ? point : best, heartPoints[0]);
+    const topCentered = Math.abs(top.x - bounds.cx) < bounds.w * 0.24;
+    const shoulderMinY = bounds.minY + bounds.h * 0.16;
+    const shoulderMaxY = bounds.minY + bounds.h * 0.56;
+    const leftShoulder = heartPoints.filter((point) => point.x < bounds.cx - bounds.w * 0.2 && point.y > shoulderMinY && point.y < shoulderMaxY);
+    const rightShoulder = heartPoints.filter((point) => point.x > bounds.cx + bounds.w * 0.2 && point.y > shoulderMinY && point.y < shoulderMaxY);
+    const shoulderY = Math.min(
+      leftShoulder.length ? Math.min(...leftShoulder.map((point) => point.y)) : bounds.maxY,
+      rightShoulder.length ? Math.min(...rightShoulder.map((point) => point.y)) : bounds.maxY
+    );
+    const pointedTopHeart = topCentered
+      && pointyBottom
+      && leftShoulder.length >= 2
+      && rightShoulder.length >= 2
+      && shoulderY > top.y + bounds.h * 0.12;
+
+    if ((!classicHeart && !pointedTopHeart) || (!ctx.closedLoose && !endpointNearBottom)) return null;
     return { label: "爱心", shape: shapeBounds(bounds, "heart"), straight: false };
   }
 
@@ -336,8 +366,8 @@
     const radial = radialStats(ctx);
     return recognizeHeart(ctx)
       || recognizeStar(ctx, radial)
-      || recognizeRectangle(ctx)
       || recognizeTriangle(ctx)
+      || recognizeRectangle(ctx)
       || recognizeEllipse(ctx, radial)
       || recognizePentagon(ctx);
   }
