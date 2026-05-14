@@ -44,6 +44,7 @@ const els = {
   appDialogCloseBtn: document.getElementById("appDialogCloseBtn"),
   appDialogCancelBtn: document.getElementById("appDialogCancelBtn"),
   appDialogConfirmBtn: document.getElementById("appDialogConfirmBtn"),
+  connectionCancelBtn: document.getElementById("connectionCancelBtn"),
   statusText: document.getElementById("statusText"),
   statusIcon: document.getElementById("statusIcon"),
   template: document.getElementById("itemTemplate")
@@ -473,6 +474,7 @@ function applyTransform() {
   els.viewport.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
   els.viewport.style.backgroundSize = `${160 * state.zoom}px ${160 * state.zoom}px, ${160 * state.zoom}px ${160 * state.zoom}px, ${32 * state.zoom}px ${32 * state.zoom}px, ${32 * state.zoom}px ${32 * state.zoom}px`;
   els.zoomLabel.value = `${Math.round(state.zoom * 100)}%`;
+  positionConnectionCancel();
 }
 
 function clampZoom(value) {
@@ -1049,7 +1051,43 @@ function editItemNote(id, value) {
   setStatus(item.note ? "已保存备注" : "已清空备注");
 }
 
+function positionConnectionCancel(point = state.connecting?.point) {
+  if (!els.connectionCancelBtn || !point) return;
+  const client = clientFromWorld(point.x, point.y);
+  const margin = 16;
+  const x = Math.max(margin, Math.min(window.innerWidth - margin, client.x));
+  const y = Math.max(72, Math.min(window.innerHeight - margin, client.y));
+  els.connectionCancelBtn.style.left = `${x}px`;
+  els.connectionCancelBtn.style.top = `${y}px`;
+}
+
+function showConnectionCancel() {
+  if (!els.connectionCancelBtn) return;
+  els.connectionCancelBtn.hidden = false;
+  positionConnectionCancel();
+  requestAnimationFrame(() => els.connectionCancelBtn.classList.add("open"));
+}
+
+function hideConnectionCancel() {
+  if (!els.connectionCancelBtn) return;
+  els.connectionCancelBtn.classList.remove("open");
+  els.connectionCancelBtn.hidden = true;
+}
+
+function cancelConnectorDrag(message = "已取消连线") {
+  if (!state.connecting) return false;
+  state.connecting.path?.remove();
+  state.connecting = null;
+  state.history.pop();
+  els.viewport.classList.remove("is-connecting");
+  hideConnectionCancel();
+  setStatus(message);
+  return true;
+}
+
 function beginConnectorDrag(event, id) {
+  if (event.button !== 0) return;
+  if (state.connecting) cancelConnectorDrag();
   const from = state.items.find((entry) => entry.id === id);
   if (!from) return;
   recordHistory();
@@ -1060,6 +1098,7 @@ function beginConnectorDrag(event, id) {
   };
   selectItem(id);
   refreshInkLayer();
+  els.viewport.classList.add("is-connecting");
   const layer = els.surface.querySelector(".ink-layer");
   const preview = document.createElementNS("http://www.w3.org/2000/svg", "path");
   preview.classList.add("connector-path", "is-preview");
@@ -1067,6 +1106,8 @@ function beginConnectorDrag(event, id) {
   preview.setAttribute("vector-effect", "non-scaling-stroke");
   layer.append(preview);
   state.connecting.path = preview;
+  showConnectionCancel();
+  setStatus("拖到其他项目框完成连线，按 Esc 或右键取消");
   event.currentTarget.setPointerCapture(event.pointerId);
   event.preventDefault();
   event.stopPropagation();
@@ -1170,6 +1211,7 @@ function onPointerMove(event) {
     if (from && state.connecting.path) {
       state.connecting.path.setAttribute("d", connectorPreviewPath(from, point));
     }
+    positionConnectionCancel(point);
     return;
   }
 
@@ -1249,6 +1291,7 @@ function onPointerUp() {
   if (state.connecting) {
     const target = itemAtPoint(state.connecting.point, state.connecting.fromId);
     if (target) {
+      state.connecting.path?.remove();
       state.connections.push({
         id: uid(),
         projectId: state.currentProjectId,
@@ -1261,7 +1304,10 @@ function onPointerUp() {
       state.history.pop();
       setStatus("已取消连接");
     }
+    state.connecting?.path?.remove();
     state.connecting = null;
+    els.viewport.classList.remove("is-connecting");
+    hideConnectionCancel();
     render();
     scheduleSave();
     return;
@@ -1876,6 +1922,16 @@ function bindEvents() {
   });
   els.sendCodeBtn.addEventListener("click", () => setStatus("验证码发送功能待后续接入"));
   els.accountSubmitBtn.addEventListener("click", () => setStatus("账号功能 UI 已就绪，后续接入邮箱注册和找回"));
+  els.connectionCancelBtn?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  els.connectionCancelBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    cancelConnectorDrag();
+    render();
+  });
   els.deleteBtn.addEventListener("click", () => {
     closeToolPopovers();
     removeSelected();
@@ -1918,6 +1974,19 @@ function bindEvents() {
 
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointerdown", (event) => {
+    if (state.connecting && event.button === 2) {
+      event.preventDefault();
+      cancelConnectorDrag();
+      render();
+    }
+  });
+  document.addEventListener("contextmenu", (event) => {
+    if (!state.connecting) return;
+    event.preventDefault();
+    cancelConnectorDrag();
+    render();
+  });
 
   els.viewport.addEventListener("wheel", (event) => {
     event.preventDefault();
@@ -1971,6 +2040,11 @@ function bindEvents() {
       removeSelected();
     }
     if (event.key === "Escape") {
+      if (cancelConnectorDrag()) {
+        event.preventDefault();
+        render();
+        return;
+      }
       selectItem(null);
       setActiveTool("select");
       closeToolPopovers();
