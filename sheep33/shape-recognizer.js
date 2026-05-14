@@ -132,6 +132,7 @@
     const length = Math.max(1, pathLength(points));
     const endpointDistance = distance(first, last);
     const closed = endpointDistance < maxDim * 0.28;
+    const closedLoose = endpointDistance < maxDim * 0.46;
     const smoothed = smoothPoints(points);
     const simplifiedOpen = simplifyPoints(smoothed, Math.max(4, maxDim * 0.03));
     const openless = closed ? points.slice(0, -1) : points;
@@ -145,6 +146,7 @@
       length,
       endpointDistance,
       closed,
+      closedLoose,
       smoothed,
       simplifiedOpen,
       simplifiedClosed,
@@ -206,7 +208,8 @@
   }
 
   function recognizeRectangle(ctx) {
-    if (radialStats(ctx).variation < 0.08) return null;
+    const sparseCornerBox = ctx.points.length <= 16 && ctx.corners >= 4 && ctx.corners <= 6;
+    if (!sparseCornerBox && radialStats(ctx).variation < 0.08) return null;
     const edgeProfile = rectangleEdgeProfile(ctx.points, ctx.bounds, Math.max(7, ctx.maxDim * 0.075));
     const strongBox = edgeProfile.ratio > 0.86;
     const corneredBox = ctx.corners >= 4 && ctx.corners <= 9 && edgeProfile.ratio > 0.68;
@@ -231,7 +234,7 @@
   }
 
   function recognizeTriangle(ctx) {
-    if (ctx.corners > 4 || ctx.aspect < 0.32 || ctx.aspect > 2.6) return null;
+    if (ctx.corners !== 3 || ctx.aspect < 0.32 || ctx.aspect > 2.6) return null;
     return { label: "三角形", shape: shapeBounds(ctx.bounds, "triangle"), straight: false };
   }
 
@@ -241,17 +244,19 @@
 
     const bottom = points.reduce((best, point) => point.y > best.y ? point : best, points[0]);
     const bottomCentered = Math.abs(bottom.x - bounds.cx) < bounds.w * 0.28;
-    const leftLobe = points.filter((point) => point.x < bounds.cx - bounds.w * 0.18 && point.y < bounds.cy);
-    const rightLobe = points.filter((point) => point.x > bounds.cx + bounds.w * 0.18 && point.y < bounds.cy);
-    const middleTop = points.filter((point) => Math.abs(point.x - bounds.cx) < bounds.w * 0.18 && point.y < bounds.cy);
-    if (!bottomCentered || leftLobe.length < 3 || rightLobe.length < 3 || middleTop.length < 2) return null;
+    const heartPoints = points.concat(ctx.simplifiedClosed);
+    const leftLobe = heartPoints.filter((point) => point.x < bounds.cx - bounds.w * 0.16 && point.y < bounds.cy);
+    const rightLobe = heartPoints.filter((point) => point.x > bounds.cx + bounds.w * 0.16 && point.y < bounds.cy);
+    const middleTop = heartPoints.filter((point) => Math.abs(point.x - bounds.cx) < bounds.w * 0.24 && point.y < bounds.cy);
+    if (!bottomCentered || leftLobe.length < 2 || rightLobe.length < 2 || middleTop.length < 1) return null;
 
     const leftTop = Math.min(...leftLobe.map((point) => point.y));
     const rightTop = Math.min(...rightLobe.map((point) => point.y));
-    const middleTopY = Math.min(...middleTop.map((point) => point.y));
-    const topNotch = middleTopY > Math.min(leftTop, rightTop) + bounds.h * 0.055;
-    const pointyBottom = points.filter((point) => point.y > bounds.maxY - bounds.h * 0.12).length < points.length * 0.18;
-    if ((!topNotch && ctx.corners < 6) || !pointyBottom || ctx.corners < 4) return null;
+    const middleNotchY = Math.max(...middleTop.map((point) => point.y));
+    const topNotch = middleNotchY > Math.min(leftTop, rightTop) + bounds.h * 0.14;
+    const pointyBottom = points.filter((point) => point.y > bounds.maxY - bounds.h * 0.13).length < points.length * 0.24;
+    const endpointNearBottom = ctx.first.y > bounds.cy && ctx.last.y > bounds.cy;
+    if (!topNotch || !pointyBottom || (!ctx.closedLoose && !endpointNearBottom)) return null;
     return { label: "爱心", shape: shapeBounds(bounds, "heart"), straight: false };
   }
 
@@ -269,7 +274,37 @@
     return peaks;
   }
 
+  function segmentIntersection(a, b, c, d) {
+    const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    const ab1 = cross(a, b, c);
+    const ab2 = cross(a, b, d);
+    const cd1 = cross(c, d, a);
+    const cd2 = cross(c, d, b);
+    return ab1 * ab2 < 0 && cd1 * cd2 < 0;
+  }
+
+  function countSelfIntersections(points) {
+    let count = 0;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      for (let j = i + 2; j < points.length - 1; j += 1) {
+        if (i === 0 && j === points.length - 2) continue;
+        if (segmentIntersection(points[i], points[i + 1], points[j], points[j + 1])) count += 1;
+      }
+    }
+    return count;
+  }
+
+  function recognizePentagram(ctx) {
+    const simplified = ctx.simplifiedClosed;
+    if (simplified.length < 5 || simplified.length > 9) return null;
+    const intersections = countSelfIntersections(simplified.concat([simplified[0]]));
+    if (intersections < 3) return null;
+    return { label: "五角星", shape: shapeBounds(ctx.bounds, "star"), straight: false };
+  }
+
   function recognizeStar(ctx, radial) {
+    const pentagram = recognizePentagram(ctx);
+    if (pentagram) return pentagram;
     if (ctx.corners < 7 || ctx.corners > 14 || radial.variation < 0.12) return null;
     const peaks = countRadialPeaks(ctx);
     if (peaks < 4 || peaks > 6) return null;
@@ -294,15 +329,15 @@
     const ctx = contextFrom(points);
     if (ctx.maxDim < MIN_SIZE) return null;
 
-    if (!ctx.closed) {
+    if (!ctx.closedLoose) {
       return recognizeArrow(ctx) || recognizeLine(ctx) || fallbackOpenStroke(ctx);
     }
 
     const radial = radialStats(ctx);
     return recognizeHeart(ctx)
       || recognizeStar(ctx, radial)
-      || recognizeTriangle(ctx)
       || recognizeRectangle(ctx)
+      || recognizeTriangle(ctx)
       || recognizeEllipse(ctx, radial)
       || recognizePentagon(ctx);
   }

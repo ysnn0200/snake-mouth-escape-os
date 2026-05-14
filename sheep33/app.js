@@ -3,6 +3,7 @@ const els = {
   surface: document.getElementById("surface"),
   projectSelect: document.getElementById("projectSelect"),
   addProjectBtn: document.getElementById("addProjectBtn"),
+  deleteProjectBtn: document.getElementById("deleteProjectBtn"),
   uploadBtn: document.getElementById("uploadBtn"),
   fileInput: document.getElementById("fileInput"),
   textBtn: document.getElementById("textBtn"),
@@ -305,6 +306,9 @@ function renderProjects() {
   });
   els.projectSelect.replaceChildren(...options);
   els.projectSelect.value = state.currentProjectId;
+  if (els.deleteProjectBtn) {
+    els.deleteProjectBtn.disabled = state.currentProjectId === DEFAULT_PROJECT_ID || state.projects.length <= 1;
+  }
 }
 
 let dialogResolve = null;
@@ -385,10 +389,55 @@ function switchProject(projectId) {
   if (!state.projects.some((project) => project.id === projectId)) return;
   state.currentProjectId = projectId;
   state.selectedId = null;
+  state.selectedStrokeId = null;
   renderProjects();
   render();
   scheduleSave();
   setStatus(`当前项目：${currentProject().name}`);
+}
+
+async function deleteCurrentProject() {
+  normalizeProjects();
+  const project = currentProject();
+  if (!project) return;
+  if (project.id === DEFAULT_PROJECT_ID || state.projects.length <= 1) {
+    setStatus("默认项目需要保留，不能删除");
+    return;
+  }
+
+  const items = state.items.filter((item) => (item.projectId || DEFAULT_PROJECT_ID) === project.id);
+  const strokes = state.strokes.filter((stroke) => (stroke.projectId || DEFAULT_PROJECT_ID) === project.id);
+  const ok = await appConfirm({
+    title: "删除项目",
+    message: `确认删除“${project.name}”吗？该项目里的 ${items.length} 个项目框、${strokes.length} 条线条和连接关系都会从本机浏览器中删除。`,
+    confirmText: "删除项目",
+    cancelText: "取消",
+    danger: true
+  });
+  if (!ok) return;
+
+  recordHistory();
+  const fileIds = items.map((item) => item.fileId).filter(Boolean);
+  await Promise.all(fileIds.map((fileId) => deleteFileRecord(fileId)));
+  for (const fileId of fileIds) {
+    state.fileCache?.delete(fileId);
+    const url = objectUrls.get(fileId);
+    if (url) URL.revokeObjectURL(url);
+    objectUrls.delete(fileId);
+  }
+
+  state.projects = state.projects.filter((entry) => entry.id !== project.id);
+  state.items = state.items.filter((item) => (item.projectId || DEFAULT_PROJECT_ID) !== project.id);
+  state.strokes = state.strokes.filter((stroke) => (stroke.projectId || DEFAULT_PROJECT_ID) !== project.id);
+  state.connections = state.connections.filter((connection) => (connection.projectId || DEFAULT_PROJECT_ID) !== project.id);
+  state.currentProjectId = state.projects[0]?.id || DEFAULT_PROJECT_ID;
+  state.selectedId = null;
+  state.selectedStrokeId = null;
+  normalizeProjects();
+  renderProjects();
+  render();
+  scheduleSave();
+  setStatus(`已删除项目：${project.name}`);
 }
 
 function projectItems() {
@@ -1697,6 +1746,10 @@ function bindEvents() {
     closeToolPopovers();
     addProject();
   });
+  els.deleteProjectBtn.addEventListener("click", () => {
+    closeToolPopovers();
+    deleteCurrentProject();
+  });
 
   els.uploadBtn.addEventListener("click", () => {
     closeToolPopovers();
@@ -1838,7 +1891,13 @@ function bindEvents() {
     if (!onCanvas) return;
     closeToolPopovers();
     selectItem(null);
+    if (event.button === 1 || state.spaceDown) {
+      beginPan(event);
+      event.preventDefault();
+      return;
+    }
     if (state.activeTool === "eraser") {
+      if (event.button !== 0) return;
       recordHistory();
       state.erasing = true;
       eraseAt(worldFromClient(event.clientX, event.clientY));
@@ -1846,10 +1905,15 @@ function bindEvents() {
       return;
     }
     if (state.activeTool === "line") {
+      if (event.button !== 0) return;
       beginDrawing(event);
       return;
     }
     beginPan(event);
+  });
+
+  els.viewport.addEventListener("auxclick", (event) => {
+    if (event.button === 1) event.preventDefault();
   });
 
   window.addEventListener("pointermove", onPointerMove);
