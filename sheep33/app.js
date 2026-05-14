@@ -1069,6 +1069,10 @@ function selectConnection(id) {
 }
 
 function beginItemPointer(event, id) {
+  if (event.target.closest(".connector-handle, .item-hover-tools, .item-note-popover, .item-content a, .item-content audio, .item-content video")) {
+    return;
+  }
+  if (state.connecting) return;
   selectItem(id);
   const item = state.items.find((entry) => entry.id === id);
   if (!item) return;
@@ -1144,8 +1148,13 @@ function hideConnectionDelete() {
 
 function cancelConnectorDrag(message = "已取消连线") {
   if (!state.connecting) return false;
+  const { captureTarget, pointerId } = state.connecting;
+  if (captureTarget?.hasPointerCapture?.(pointerId)) {
+    captureTarget.releasePointerCapture(pointerId);
+  }
   state.connecting.path?.remove();
   state.connecting = null;
+  state.drag = null;
   state.history.pop();
   els.viewport.classList.remove("is-connecting");
   setStatus(message);
@@ -1161,7 +1170,9 @@ function beginConnectorDrag(event, id) {
   state.connecting = {
     fromId: id,
     point: worldFromClient(event.clientX, event.clientY),
-    path: null
+    path: null,
+    pointerId: event.pointerId,
+    captureTarget: event.currentTarget
   };
   selectItem(id);
   refreshInkLayer();
@@ -1357,6 +1368,7 @@ function onPointerMove(event) {
 
 function onPointerUp() {
   if (state.connecting) {
+    const { captureTarget, pointerId } = state.connecting;
     const target = itemAtPoint(state.connecting.point, state.connecting.fromId);
     if (target) {
       state.connecting.path?.remove();
@@ -1373,9 +1385,12 @@ function onPointerUp() {
       setStatus("已取消连接");
     }
     state.connecting?.path?.remove();
+    if (captureTarget?.hasPointerCapture?.(pointerId)) {
+      captureTarget.releasePointerCapture(pointerId);
+    }
     state.connecting = null;
+    state.drag = null;
     els.viewport.classList.remove("is-connecting");
-    hideConnectionCancel();
     render();
     scheduleSave();
     return;
