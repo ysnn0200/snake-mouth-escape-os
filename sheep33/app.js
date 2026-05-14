@@ -709,6 +709,21 @@ function shapeToPath(shape) {
   if (shape.type === "rectangle") {
     return `M ${shape.x} ${shape.y} H ${shape.x + shape.w} V ${shape.y + shape.h} H ${shape.x} Z`;
   }
+  if (shape.type === "arrow") {
+    const start = shape.start;
+    const end = shape.end;
+    const angle = Math.atan2(end.y - start.y, end.x - start.x);
+    const size = shape.headSize || 28;
+    const left = {
+      x: Math.round(end.x - Math.cos(angle - Math.PI / 6) * size),
+      y: Math.round(end.y - Math.sin(angle - Math.PI / 6) * size)
+    };
+    const right = {
+      x: Math.round(end.x - Math.cos(angle + Math.PI / 6) * size),
+      y: Math.round(end.y - Math.sin(angle + Math.PI / 6) * size)
+    };
+    return `M ${start.x} ${start.y} L ${end.x} ${end.y} M ${left.x} ${left.y} L ${end.x} ${end.y} L ${right.x} ${right.y}`;
+  }
   if (shape.type === "triangle") return polygonPath(cx, cy, rx, ry, 3);
   if (shape.type === "pentagon") return polygonPath(cx, cy, rx, ry, 5);
   if (shape.type === "star") return starPath(cx, cy, rx, ry);
@@ -741,167 +756,19 @@ function pointLineDistance(point, start, end) {
 function translateStroke(stroke, dx, dy) {
   stroke.points = stroke.points.map((point) => ({ x: Math.round(point.x + dx), y: Math.round(point.y + dy) }));
   if (stroke.shape) {
-    stroke.shape.x = Math.round(stroke.shape.x + dx);
-    stroke.shape.y = Math.round(stroke.shape.y + dy);
-  }
-}
-
-function simplifyPoints(points, epsilon) {
-  if (points.length < 3) return points;
-  let maxDistance = 0;
-  let index = 0;
-  const end = points.length - 1;
-  for (let i = 1; i < end; i += 1) {
-    const currentDistance = pointLineDistance(points[i], points[0], points[end]);
-    if (currentDistance > maxDistance) {
-      index = i;
-      maxDistance = currentDistance;
+    if (stroke.shape.type === "arrow") {
+      stroke.shape.start = { x: Math.round(stroke.shape.start.x + dx), y: Math.round(stroke.shape.start.y + dy) };
+      stroke.shape.end = { x: Math.round(stroke.shape.end.x + dx), y: Math.round(stroke.shape.end.y + dy) };
+    } else {
+      stroke.shape.x = Math.round(stroke.shape.x + dx);
+      stroke.shape.y = Math.round(stroke.shape.y + dy);
     }
   }
-  if (maxDistance <= epsilon) return [points[0], points[end]];
-  const left = simplifyPoints(points.slice(0, index + 1), epsilon);
-  const right = simplifyPoints(points.slice(index), epsilon);
-  return left.slice(0, -1).concat(right);
-}
-
-function smoothPoints(points) {
-  if (points.length < 4) return points;
-  return points.map((point, index) => {
-    if (index === 0 || index === points.length - 1) return point;
-    const prev = points[index - 1];
-    const next = points[index + 1];
-    return {
-      x: Math.round((prev.x + point.x * 2 + next.x) / 4),
-      y: Math.round((prev.y + point.y * 2 + next.y) / 4)
-    };
-  });
-}
-
-function rectangleEdgeProfile(points, bounds, tolerance) {
-  const counts = [0, 0, 0, 0];
-  for (const point of points) {
-    if (Math.abs(point.x - bounds.minX) <= tolerance) counts[0] += 1;
-    if (Math.abs(point.x - bounds.maxX) <= tolerance) counts[1] += 1;
-    if (Math.abs(point.y - bounds.minY) <= tolerance) counts[2] += 1;
-    if (Math.abs(point.y - bounds.maxY) <= tolerance) counts[3] += 1;
-  }
-  const edgeHits = counts.reduce((sum, count) => sum + count, 0);
-  const sideThreshold = Math.max(2, points.length * 0.07);
-  return {
-    ratio: edgeHits / Math.max(1, points.length),
-    sides: counts.filter((count) => count >= sideThreshold).length
-  };
-}
-
-function rectShapeFromBounds(bounds, forceSquare = false) {
-  if (!forceSquare) {
-    return {
-      type: "rectangle",
-      x: Math.round(bounds.minX),
-      y: Math.round(bounds.minY),
-      w: Math.round(bounds.w),
-      h: Math.round(bounds.h)
-    };
-  }
-  const side = Math.max(bounds.w, bounds.h);
-  return {
-    type: "rectangle",
-    x: Math.round(bounds.cx - side / 2),
-    y: Math.round(bounds.cy - side / 2),
-    w: Math.round(side),
-    h: Math.round(side)
-  };
-}
-
-function recognizeStroke(points) {
-  if (points.length < 2) return null;
-  const bounds = boundsOf(points);
-  const maxDim = Math.max(bounds.w, bounds.h);
-  if (maxDim < 18) return null;
-
-  const first = points[0];
-  const last = points[points.length - 1];
-  const endpointDistance = distance(first, last);
-  const directness = endpointDistance / Math.max(1, points.reduce((sum, point, index) => index ? sum + distance(points[index - 1], point) : 0, 0));
-  const lineDeviation = points.reduce((max, point) => Math.max(max, pointLineDistance(point, first, last)), 0) / maxDim;
-  const closed = distance(first, last) < maxDim * 0.28;
-  if (!closed) {
-    if (directness > 0.92 && lineDeviation < 0.08) {
-      return { label: "直线", shape: null, straight: true };
-    }
-    const simplifiedOpen = simplifyPoints(smoothPoints(points), Math.max(4, maxDim * 0.025));
-    return simplifiedOpen.length < points.length * 0.82
-      ? { label: "折线", shape: null, straight: false, points: simplifiedOpen }
-      : { label: "平滑线", shape: null, straight: false, points: smoothPoints(points) };
-  }
-
-  const rx = bounds.w / 2;
-  const ry = bounds.h / 2;
-  const normalized = points.map((point) => Math.hypot((point.x - bounds.cx) / rx, (point.y - bounds.cy) / ry));
-  const mean = normalized.reduce((sum, value) => sum + value, 0) / normalized.length;
-  const variance = normalized.reduce((sum, value) => sum + (value - mean) ** 2, 0) / normalized.length;
-  const radialVariation = Math.sqrt(variance);
-  const aspect = bounds.w / bounds.h;
-  const openless = points.slice(0, -1);
-  const simplified = simplifyPoints(openless, Math.max(8, maxDim * 0.055));
-  const corners = simplified.length;
-  const bottom = points.reduce((best, point) => point.y > best.y ? point : best, points[0]);
-  const topMiddlePoints = points.filter((point) => Math.abs(point.x - bounds.cx) < bounds.w * 0.22 && point.y < bounds.cy);
-  const hasTopNotch = topMiddlePoints.length > points.length * 0.04;
-  const bottomCentered = Math.abs(bottom.x - bounds.cx) < bounds.w * 0.32;
-  const heartLike = aspect > 0.68 && aspect < 1.45 && bottomCentered && hasTopNotch && corners >= 6;
-  const edgeProfile = rectangleEdgeProfile(points, bounds, Math.max(7, maxDim * 0.075));
-  const rectangleLike = corners >= 2 && corners <= 9 && edgeProfile.ratio > 0.56 && edgeProfile.sides === 4 && aspect > 0.46 && aspect < 2.2;
-
-  if (rectangleLike) {
-    const isSquare = aspect > 0.82 && aspect < 1.18;
-    return {
-      label: isSquare ? "正方形" : "矩形",
-      shape: rectShapeFromBounds(bounds, isSquare),
-      straight: false
-    };
-  }
-
-  if (radialVariation < 0.22 && corners > 5) {
-    return {
-      label: aspect > 0.82 && aspect < 1.18 ? "正圆形" : "椭圆形",
-      shape: {
-        type: aspect > 0.82 && aspect < 1.18 ? "circle" : "ellipse",
-        x: Math.round(aspect > 0.82 && aspect < 1.18 ? bounds.cx - maxDim / 2 : bounds.minX),
-        y: Math.round(aspect > 0.82 && aspect < 1.18 ? bounds.cy - maxDim / 2 : bounds.minY),
-        w: Math.round(aspect > 0.82 && aspect < 1.18 ? maxDim : bounds.w),
-        h: Math.round(aspect > 0.82 && aspect < 1.18 ? maxDim : bounds.h)
-      },
-      straight: false
-    };
-  }
-
-  if (corners <= 3) {
-    return { label: "三角形", shape: { type: "triangle", x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: Math.round(bounds.w), h: Math.round(bounds.h) }, straight: false };
-  }
-  if (heartLike) {
-    return { label: "爱心", shape: { type: "heart", x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: Math.round(bounds.w), h: Math.round(bounds.h) }, straight: false };
-  }
-  if (corners >= 2 && corners <= 9 && edgeProfile.ratio > 0.48 && edgeProfile.sides === 4) {
-    const isSquare = aspect > 0.82 && aspect < 1.18;
-    return {
-      label: isSquare ? "正方形" : "矩形",
-      shape: rectShapeFromBounds(bounds, isSquare),
-      straight: false
-    };
-  }
-  if (corners === 5 || corners === 6) {
-    return { label: "五边形", shape: { type: "pentagon", x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: Math.round(bounds.w), h: Math.round(bounds.h) }, straight: false };
-  }
-  if (corners >= 8 && corners <= 12 && radialVariation > 0.26) {
-    return { label: "五角星", shape: { type: "star", x: Math.round(bounds.minX), y: Math.round(bounds.minY), w: Math.round(bounds.w), h: Math.round(bounds.h) }, straight: false };
-  }
-  return null;
 }
 
 function beautifyCurrentStroke() {
   if (!state.drawing || state.drawing.stroke.points.length < 2) return;
-  const result = recognizeStroke(state.drawing.stroke.points);
+  const result = window.ShapeRecognizer?.recognizeStroke(state.drawing.stroke.points);
   if (!result) return;
   state.drawing.stroke.straight = result.straight;
   state.drawing.stroke.shape = result.shape;
@@ -931,6 +798,9 @@ function sampleShape(shape) {
       { x: shape.x, y: shape.y + shape.h },
       { x: shape.x, y: shape.y }
     ];
+  }
+  if (shape.type === "arrow") {
+    return [shape.start, shape.end];
   }
   if (shape.type === "heart") {
     return Array.from({ length: 40 }, (_, index) => {
