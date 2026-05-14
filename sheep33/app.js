@@ -44,7 +44,7 @@ const els = {
   appDialogCloseBtn: document.getElementById("appDialogCloseBtn"),
   appDialogCancelBtn: document.getElementById("appDialogCancelBtn"),
   appDialogConfirmBtn: document.getElementById("appDialogConfirmBtn"),
-  connectionCancelBtn: document.getElementById("connectionCancelBtn"),
+  connectionDeleteBtn: document.getElementById("connectionDeleteBtn"),
   statusText: document.getElementById("statusText"),
   statusIcon: document.getElementById("statusIcon"),
   template: document.getElementById("itemTemplate")
@@ -70,6 +70,7 @@ const state = {
   connections: [],
   selectedId: null,
   selectedStrokeId: null,
+  selectedConnectionId: null,
   theme: "light",
   activeTool: "select",
   activeColor: "#0f5bd7",
@@ -231,6 +232,7 @@ function restoreSnapshot(snapshot) {
   state.connections = Array.isArray(saved.connections) ? saved.connections : [];
   state.selectedId = null;
   state.selectedStrokeId = null;
+  state.selectedConnectionId = null;
   normalizeProjects();
   renderProjects();
     setTheme(saved.theme === "dark" ? "dark" : "light", false);
@@ -380,6 +382,7 @@ async function addProject() {
   state.projects.push(project);
   state.currentProjectId = project.id;
   state.selectedId = null;
+  state.selectedConnectionId = null;
   renderProjects();
   render();
   scheduleSave();
@@ -391,6 +394,7 @@ function switchProject(projectId) {
   state.currentProjectId = projectId;
   state.selectedId = null;
   state.selectedStrokeId = null;
+  state.selectedConnectionId = null;
   renderProjects();
   render();
   scheduleSave();
@@ -434,6 +438,7 @@ async function deleteCurrentProject() {
   state.currentProjectId = state.projects[0]?.id || DEFAULT_PROJECT_ID;
   state.selectedId = null;
   state.selectedStrokeId = null;
+  state.selectedConnectionId = null;
   normalizeProjects();
   renderProjects();
   render();
@@ -474,7 +479,7 @@ function applyTransform() {
   els.viewport.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
   els.viewport.style.backgroundSize = `${160 * state.zoom}px ${160 * state.zoom}px, ${160 * state.zoom}px ${160 * state.zoom}px, ${32 * state.zoom}px ${32 * state.zoom}px, ${32 * state.zoom}px ${32 * state.zoom}px`;
   els.zoomLabel.value = `${Math.round(state.zoom * 100)}%`;
-  positionConnectionCancel();
+  positionConnectionDelete();
 }
 
 function clampZoom(value) {
@@ -897,7 +902,7 @@ function eraseAt(point) {
     state.selectedStrokeId = null;
     render();
     scheduleSave();
-    setStatus("已擦除线条");
+    setStatus("已消除线条");
   }
 }
 
@@ -929,6 +934,18 @@ function itemCenter(item) {
   };
 }
 
+function connectionCenter(connection) {
+  const from = state.items.find((item) => item.id === connection.fromId);
+  const to = state.items.find((item) => item.id === connection.toId);
+  if (!from || !to) return null;
+  const start = itemCenter(from);
+  const end = itemCenter(to);
+  return {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2
+  };
+}
+
 function createConnectionPath(connection) {
   const from = state.items.find((item) => item.id === connection.fromId);
   const to = state.items.find((item) => item.id === connection.toId);
@@ -942,6 +959,18 @@ function createConnectionPath(connection) {
   path.setAttribute("d", `M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`);
   path.setAttribute("stroke", connection.color || "#64748b");
   path.setAttribute("vector-effect", "non-scaling-stroke");
+  path.classList.toggle("selected", connection.id === state.selectedConnectionId);
+  path.addEventListener("pointerdown", (event) => {
+    selectConnection(connection.id);
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  path.addEventListener("dblclick", (event) => {
+    selectConnection(connection.id);
+    removeSelected();
+    event.preventDefault();
+    event.stopPropagation();
+  });
   return path;
 }
 
@@ -987,22 +1016,55 @@ function render() {
 function selectItem(id) {
   state.selectedId = id;
   state.selectedStrokeId = null;
+  state.selectedConnectionId = null;
+  hideConnectionDelete();
   for (const child of els.surface.children) {
     child.classList.toggle("selected", child.dataset.id === id);
   }
   for (const path of els.surface.querySelectorAll(".ink-path")) {
     path.classList.toggle("selected", path.dataset.id === state.selectedStrokeId);
   }
+  for (const path of els.surface.querySelectorAll(".connector-path")) {
+    path.classList.toggle("selected", false);
+  }
 }
 
 function selectStroke(id) {
   state.selectedStrokeId = id;
   if (id) state.selectedId = null;
+  state.selectedConnectionId = null;
+  hideConnectionDelete();
   for (const child of els.surface.children) {
     child.classList.toggle("selected", false);
   }
   for (const path of els.surface.querySelectorAll(".ink-path")) {
     path.classList.toggle("selected", path.dataset.id === id);
+  }
+  for (const path of els.surface.querySelectorAll(".connector-path")) {
+    path.classList.toggle("selected", false);
+  }
+}
+
+function selectConnection(id) {
+  state.selectedConnectionId = id;
+  if (id) {
+    state.selectedId = null;
+    state.selectedStrokeId = null;
+  }
+  for (const child of els.surface.children) {
+    child.classList.toggle("selected", false);
+  }
+  for (const path of els.surface.querySelectorAll(".ink-path")) {
+    path.classList.toggle("selected", false);
+  }
+  for (const path of els.surface.querySelectorAll(".connector-path")) {
+    path.classList.toggle("selected", path.dataset.id === id);
+  }
+  if (id) {
+    showConnectionDelete();
+    setStatus("已选中连接线，点击取消连接或按 Delete 删除");
+  } else {
+    hideConnectionDelete();
   }
 }
 
@@ -1051,27 +1113,33 @@ function editItemNote(id, value) {
   setStatus(item.note ? "已保存备注" : "已清空备注");
 }
 
-function positionConnectionCancel(point = state.connecting?.point) {
-  if (!els.connectionCancelBtn || !point) return;
+function positionConnectionDelete() {
+  if (!els.connectionDeleteBtn || !state.selectedConnectionId) return;
+  const connection = state.connections.find((entry) => entry.id === state.selectedConnectionId);
+  const point = connection ? connectionCenter(connection) : null;
+  if (!point) {
+    hideConnectionDelete();
+    return;
+  }
   const client = clientFromWorld(point.x, point.y);
   const margin = 16;
   const x = Math.max(margin, Math.min(window.innerWidth - margin, client.x));
   const y = Math.max(72, Math.min(window.innerHeight - margin, client.y));
-  els.connectionCancelBtn.style.left = `${x}px`;
-  els.connectionCancelBtn.style.top = `${y}px`;
+  els.connectionDeleteBtn.style.left = `${x}px`;
+  els.connectionDeleteBtn.style.top = `${y}px`;
 }
 
-function showConnectionCancel() {
-  if (!els.connectionCancelBtn) return;
-  els.connectionCancelBtn.hidden = false;
-  positionConnectionCancel();
-  requestAnimationFrame(() => els.connectionCancelBtn.classList.add("open"));
+function showConnectionDelete() {
+  if (!els.connectionDeleteBtn) return;
+  els.connectionDeleteBtn.hidden = false;
+  positionConnectionDelete();
+  requestAnimationFrame(() => els.connectionDeleteBtn.classList.add("open"));
 }
 
-function hideConnectionCancel() {
-  if (!els.connectionCancelBtn) return;
-  els.connectionCancelBtn.classList.remove("open");
-  els.connectionCancelBtn.hidden = true;
+function hideConnectionDelete() {
+  if (!els.connectionDeleteBtn) return;
+  els.connectionDeleteBtn.classList.remove("open");
+  els.connectionDeleteBtn.hidden = true;
 }
 
 function cancelConnectorDrag(message = "已取消连线") {
@@ -1080,7 +1148,6 @@ function cancelConnectorDrag(message = "已取消连线") {
   state.connecting = null;
   state.history.pop();
   els.viewport.classList.remove("is-connecting");
-  hideConnectionCancel();
   setStatus(message);
   return true;
 }
@@ -1107,7 +1174,7 @@ function beginConnectorDrag(event, id) {
   layer.append(preview);
   state.connecting.path = preview;
   showConnectionCancel();
-  setStatus("拖到其他项目框完成连线，按 Esc 或右键取消");
+  setStatus("拖到其他项目框完成连线");
   event.currentTarget.setPointerCapture(event.pointerId);
   event.preventDefault();
   event.stopPropagation();
@@ -1162,7 +1229,7 @@ function setActiveTool(tool) {
   const labels = {
     line: "画线模式：画线或画形状，停住长按会自动修正",
     strokeEdit: "线条编辑：拖动可移动，按删除可删除",
-    eraser: "涂抹模式：按住涂抹可擦除线条和图形",
+    eraser: "消除模式：按住拖动可消除线条和图形",
     select: "选择模式：拖拽素材或画布"
   };
   setStatus(labels[tool] || labels.select);
@@ -1285,6 +1352,7 @@ function onPointerMove(event) {
     node.style.height = `${item.h}px`;
   }
   refreshInkLayer();
+  positionConnectionDelete();
 }
 
 function onPointerUp() {
@@ -1529,6 +1597,16 @@ function humanSize(bytes = 0) {
 }
 
 function removeSelected() {
+  if (state.selectedConnectionId) {
+    recordHistory();
+    state.connections = state.connections.filter((entry) => entry.id !== state.selectedConnectionId);
+    state.selectedConnectionId = null;
+    hideConnectionDelete();
+    render();
+    scheduleSave();
+    setStatus("已取消连接");
+    return;
+  }
   if (state.selectedStrokeId) {
     recordHistory();
     state.strokes = state.strokes.filter((entry) => entry.id !== state.selectedStrokeId);
@@ -1542,6 +1620,8 @@ function removeSelected() {
   const item = state.items.find((entry) => entry.id === state.selectedId);
   state.items = state.items.filter((entry) => entry.id !== state.selectedId);
   state.connections = state.connections.filter((entry) => entry.fromId !== state.selectedId && entry.toId !== state.selectedId);
+  state.selectedConnectionId = null;
+  hideConnectionDelete();
   if (item?.fileId) {
     deleteFileRecord(item.fileId);
     state.fileCache?.delete(item.fileId);
@@ -1576,6 +1656,9 @@ async function clearCanvas() {
   state.strokes = state.strokes.filter((stroke) => (stroke.projectId || DEFAULT_PROJECT_ID) !== state.currentProjectId);
   state.connections = state.connections.filter((connection) => (connection.projectId || DEFAULT_PROJECT_ID) !== state.currentProjectId);
   state.selectedId = null;
+  state.selectedStrokeId = null;
+  state.selectedConnectionId = null;
+  hideConnectionDelete();
   for (const item of items) {
     if (item.fileId) state.fileCache?.delete(item.fileId);
   }
@@ -1922,15 +2005,14 @@ function bindEvents() {
   });
   els.sendCodeBtn.addEventListener("click", () => setStatus("验证码发送功能待后续接入"));
   els.accountSubmitBtn.addEventListener("click", () => setStatus("账号功能 UI 已就绪，后续接入邮箱注册和找回"));
-  els.connectionCancelBtn?.addEventListener("pointerdown", (event) => {
+  els.connectionDeleteBtn?.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     event.stopPropagation();
   });
-  els.connectionCancelBtn?.addEventListener("click", (event) => {
+  els.connectionDeleteBtn?.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    cancelConnectorDrag();
-    render();
+    removeSelected();
   });
   els.deleteBtn.addEventListener("click", () => {
     closeToolPopovers();

@@ -382,8 +382,38 @@ button {
   stroke-linejoin: round;
   stroke-width: 3;
   opacity: 0.76;
+  pointer-events: stroke;
+  stroke-dasharray: 8 10;
+  stroke-dashoffset: 0;
+  cursor: pointer;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 18%, transparent));
+  animation: connector-flow 1.15s linear infinite;
+  transition: stroke-width 140ms ease, opacity 140ms ease, filter 140ms ease;
+}
+
+.connector-path:hover,
+.connector-path.selected {
+  stroke-width: 5;
+  opacity: .96;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 38%, transparent));
+}
+
+.connector-path.selected {
+  stroke-dasharray: 10 8;
+  animation-duration: .78s;
+}
+
+.connector-path.is-preview {
   pointer-events: none;
-  stroke-dasharray: 9 8;
+  cursor: default;
+  animation: none;
+  filter: none;
+}
+
+@keyframes connector-flow {
+  to {
+    stroke-dashoffset: -36;
+  }
 }
 
 .ink-path.is-preview {
@@ -432,8 +462,8 @@ button {
 .move-handle {
   position: absolute;
   z-index: 2;
-  top: 7px;
-  right: 7px;
+  top: -36px;
+  right: 0;
   display: grid;
   width: 28px;
   height: 28px;
@@ -475,7 +505,7 @@ button {
   place-items: center;
   overflow: hidden;
   padding: 10px;
-  container-type: inline-size;
+  container-type: size;
 }
 
 .item-content img,
@@ -536,7 +566,7 @@ button {
   height: 100%;
   place-items: center;
   padding: 0;
-  font-size: clamp(86px, 70cqw, 142px);
+  font-size: clamp(24px, min(70cqw, 62cqh), 142px);
   line-height: 1;
   filter: drop-shadow(0 10px 22px rgba(15, 23, 42, .12));
   transform: translateY(.02em);
@@ -545,7 +575,7 @@ button {
 .canvas-item.emoji-item .item-content {
   height: 100%;
   border-radius: 16px;
-  padding: 34px 12px 34px;
+  padding: 6px 8px 30px;
 }
 
 .canvas-item.emoji-item .item-meta {
@@ -1230,9 +1260,9 @@ button {
 .item-hover-tools {
   position: absolute;
   z-index: 3;
-  left: 8px;
-  right: 42px;
-  top: 8px;
+  left: 0;
+  right: 34px;
+  top: -36px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1351,6 +1381,8 @@ button {
 .connector-path.is-preview {
   opacity: .9;
   stroke-dasharray: 4 5;
+  animation: none;
+  filter: none;
 }
 
 .account-card {
