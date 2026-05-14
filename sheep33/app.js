@@ -30,6 +30,7 @@ const els = {
   zoomLabel: document.getElementById("zoomLabel"),
   homeBtn: document.getElementById("homeBtn"),
   locateBtn: document.getElementById("locateBtn"),
+  shareBtn: document.getElementById("shareBtn"),
   accountBtn: document.getElementById("accountBtn"),
   accountPanel: document.getElementById("accountPanel"),
   accountCloseBtn: document.getElementById("accountCloseBtn"),
@@ -54,6 +55,10 @@ const DB_NAME = "lan-infinite-canvas";
 const STORE_NAME = "canvas";
 const FILE_RECORD = "files";
 const STATE_RECORD = "state";
+const CANVAS_PARAM = "canvas";
+const REMOTE_API = "https://jsonblob.com/api/jsonBlob";
+const REMOTE_POLL_MS = 4200;
+const REMOTE_SAVE_DELAY = 900;
 const MAX_FILE_BYTES = 300 * 1024 * 1024;
 const DEFAULT_PROJECT_ID = "default";
 const STRAIGHTEN_HOLD_MS = 620;
@@ -63,6 +68,7 @@ const state = {
   panX: window.innerWidth / 2,
   panY: window.innerHeight / 2,
   zoom: 1,
+  canvasId: null,
   projects: [{ id: DEFAULT_PROJECT_ID, name: "默认项目" }],
   currentProjectId: DEFAULT_PROJECT_ID,
   items: [],
@@ -87,6 +93,12 @@ const state = {
   spaceDown: false,
   db: null
 };
+
+let remoteSaveTimer = null;
+let remotePollTimer = null;
+let remoteUpdatedAt = 0;
+let applyingRemote = false;
+let remoteReady = false;
 
 const emojiLibrary = [
   "😀","😁","😂","🤣","😊","😍","😘","😎","🤩","🥳","😇","🙂","🙃","😉","😌","😋","😜","🤪",
@@ -185,6 +197,58 @@ function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function shortId() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+function canvasKey(key) {
+  return state.canvasId ? `${key}:${state.canvasId}` : key;
+}
+
+function setCanvasParam(id) {
+  state.canvasId = id;
+  const url = new URL(window.location.href);
+  url.searchParams.set(CANVAS_PARAM, id);
+  window.history.replaceState(null, "", url);
+}
+
+function currentShareUrl() {
+  const url = new URL(window.location.href);
+  if (state.canvasId) url.searchParams.set(CANVAS_PARAM, state.canvasId);
+  return url.toString();
+}
+
+function canvasPayload() {
+  return {
+    panX: state.panX,
+    panY: state.panY,
+    zoom: state.zoom,
+    theme: state.theme,
+    projects: state.projects,
+    currentProjectId: state.currentProjectId,
+    strokes: state.strokes,
+    connections: state.connections,
+    items: state.items
+  };
+}
+
+function applyCanvasPayload(saved) {
+  if (!saved) return;
+  state.panX = saved.panX ?? state.panX;
+  state.panY = saved.panY ?? state.panY;
+  state.zoom = saved.zoom ?? state.zoom;
+  state.items = Array.isArray(saved.items) ? saved.items : [];
+  state.strokes = Array.isArray(saved.strokes) ? saved.strokes : [];
+  state.connections = Array.isArray(saved.connections) ? saved.connections : [];
+  state.projects = Array.isArray(saved.projects) ? saved.projects : state.projects;
+  state.currentProjectId = saved.currentProjectId || state.currentProjectId;
+  normalizeProjects();
+  setTheme(saved.theme === "dark" ? "dark" : "light", false);
+  renderProjects();
+  applyTransform();
+  render();
+}
+
 function setStatus(text) {
   els.statusText.textContent = text;
   const icons = [
@@ -202,17 +266,7 @@ function setStatus(text) {
 }
 
 function snapshotState() {
-  return JSON.stringify({
-    panX: state.panX,
-    panY: state.panY,
-    zoom: state.zoom,
-    projects: state.projects,
-    currentProjectId: state.currentProjectId,
-    items: state.items,
-    strokes: state.strokes,
-    connections: state.connections,
-    theme: state.theme
-  });
+  return JSON.stringify(canvasPayload());
 }
 
 function recordHistory() {
@@ -222,22 +276,10 @@ function recordHistory() {
 
 function restoreSnapshot(snapshot) {
   const saved = JSON.parse(snapshot);
-  state.panX = saved.panX ?? state.panX;
-  state.panY = saved.panY ?? state.panY;
-  state.zoom = saved.zoom ?? state.zoom;
-  state.projects = Array.isArray(saved.projects) ? saved.projects : state.projects;
-  state.currentProjectId = saved.currentProjectId || state.currentProjectId;
-  state.items = Array.isArray(saved.items) ? saved.items : [];
-  state.strokes = Array.isArray(saved.strokes) ? saved.strokes : [];
-  state.connections = Array.isArray(saved.connections) ? saved.connections : [];
   state.selectedId = null;
   state.selectedStrokeId = null;
   state.selectedConnectionId = null;
-  normalizeProjects();
-  renderProjects();
-    setTheme(saved.theme === "dark" ? "dark" : "light", false);
-  applyTransform();
-  render();
+  applyCanvasPayload(saved);
   scheduleSave();
 }
 
@@ -1185,7 +1227,6 @@ function beginConnectorDrag(event, id) {
   preview.setAttribute("vector-effect", "non-scaling-stroke");
   layer.append(preview);
   state.connecting.path = preview;
-  showConnectionCancel();
   setStatus("拖到其他项目框完成连线");
   event.currentTarget.setPointerCapture(event.pointerId);
   event.preventDefault();
@@ -1290,7 +1331,6 @@ function onPointerMove(event) {
     if (from && state.connecting.path) {
       state.connecting.path.setAttribute("d", connectorPreviewPath(from, point));
     }
-    positionConnectionCancel(point);
     return;
   }
 
@@ -1686,8 +1726,111 @@ async function clearCanvas() {
 let saveTimer = null;
 
 function scheduleSave() {
+  if (applyingRemote) return;
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(saveState, 220);
+}
+
+function remoteEnvelope(payload = canvasPayload()) {
+  const updatedAt = Date.now();
+  remoteUpdatedAt = Math.max(remoteUpdatedAt, updatedAt);
+  return {
+    app: "sheep33",
+    schema: 1,
+    canvasId: state.canvasId,
+    updatedAt,
+    data: payload
+  };
+}
+
+async function createRemoteCanvas() {
+  const envelope = remoteEnvelope();
+  const response = await fetch(REMOTE_API, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify(envelope)
+  });
+  if (!response.ok) throw new Error(`create remote canvas failed: ${response.status}`);
+  const location = response.headers.get("Location") || "";
+  const id = location.split("/").filter(Boolean).pop();
+  if (!id) throw new Error("remote canvas id missing");
+  setCanvasParam(id);
+  envelope.canvasId = id;
+  await pushRemoteState(canvasPayload(), true);
+  return id;
+}
+
+async function fetchRemoteState() {
+  if (!state.canvasId) return false;
+  const response = await fetch(`${REMOTE_API}/${encodeURIComponent(state.canvasId)}`, {
+    headers: { "Accept": "application/json" },
+    cache: "no-store"
+  });
+  if (!response.ok) return false;
+  const envelope = await response.json();
+  if (!envelope?.data) return false;
+  if ((envelope.updatedAt || 0) <= remoteUpdatedAt) return true;
+  applyingRemote = true;
+  remoteUpdatedAt = envelope.updatedAt || Date.now();
+  applyCanvasPayload(envelope.data);
+  await dbPut(canvasKey(STATE_RECORD), envelope.data);
+  applyingRemote = false;
+  setStatus("已同步共享画布");
+  return true;
+}
+
+async function pushRemoteState(payload = canvasPayload(), immediate = false) {
+  if (!state.canvasId || applyingRemote) return;
+  const envelope = remoteEnvelope(payload);
+  try {
+    const response = await fetch(`${REMOTE_API}/${encodeURIComponent(state.canvasId)}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(envelope)
+    });
+    if (!response.ok && !immediate) throw new Error(`remote save failed: ${response.status}`);
+    remoteReady = response.ok;
+    if (response.ok) setStatus("共享画布已保存");
+  } catch (error) {
+    console.warn(error);
+    remoteReady = false;
+    setStatus("共享同步暂不可用，已保存在本机");
+  }
+}
+
+function scheduleRemoteSave(payload) {
+  if (!state.canvasId || !remoteReady || applyingRemote) return;
+  window.clearTimeout(remoteSaveTimer);
+  remoteSaveTimer = window.setTimeout(() => pushRemoteState(payload), REMOTE_SAVE_DELAY);
+}
+
+function startRemotePolling() {
+  window.clearInterval(remotePollTimer);
+  remotePollTimer = window.setInterval(() => {
+    fetchRemoteState().catch((error) => console.warn(error));
+  }, REMOTE_POLL_MS);
+}
+
+async function ensureCanvasLink() {
+  const id = new URL(window.location.href).searchParams.get(CANVAS_PARAM);
+  if (id) {
+    setCanvasParam(id);
+    return;
+  }
+  setCanvasParam(shortId());
+  try {
+    const remoteId = await createRemoteCanvas();
+    setStatus(`已生成共享画布：${remoteId}`);
+  } catch (error) {
+    console.warn(error);
+    setStatus(`已生成本机画布：${state.canvasId}`);
+  }
 }
 
 function openDb() {
@@ -1730,64 +1873,74 @@ function dbDelete(key) {
 }
 
 async function putFileRecord(id, file) {
-  const files = (await dbGet(FILE_RECORD)) || {};
+  const files = (await dbGet(canvasKey(FILE_RECORD))) || {};
   files[id] = {
     name: file.name,
     type: file.type,
     size: file.size,
     blob: file
   };
-  await dbPut(FILE_RECORD, files);
+  await dbPut(canvasKey(FILE_RECORD), files);
 }
 
 async function deleteFileRecord(id) {
-  const files = (await dbGet(FILE_RECORD)) || {};
+  const files = (await dbGet(canvasKey(FILE_RECORD))) || {};
   delete files[id];
-  await dbPut(FILE_RECORD, files);
+  await dbPut(canvasKey(FILE_RECORD), files);
 }
 
 async function saveState() {
   if (!state.db) return;
-  const payload = {
-    panX: state.panX,
-    panY: state.panY,
-    zoom: state.zoom,
-    theme: state.theme,
-    projects: state.projects,
-    currentProjectId: state.currentProjectId,
-    strokes: state.strokes,
-    connections: state.connections,
-    items: state.items
-  };
-  await dbPut(STATE_RECORD, payload);
+  const payload = canvasPayload();
+  await dbPut(canvasKey(STATE_RECORD), payload);
+  scheduleRemoteSave(payload);
 }
 
 async function restoreState() {
   state.db = await openDb();
-  const saved = await dbGet(STATE_RECORD);
-  const files = (await dbGet(FILE_RECORD)) || {};
+  const saved = await dbGet(canvasKey(STATE_RECORD));
+  const files = (await dbGet(canvasKey(FILE_RECORD))) || {};
   state.fileCache = new Map(Object.entries(files).map(([id, record]) => [id, record]));
 
   if (saved) {
-    state.panX = saved.panX ?? state.panX;
-    state.panY = saved.panY ?? state.panY;
-    state.zoom = saved.zoom ?? state.zoom;
-    state.items = Array.isArray(saved.items) ? saved.items : [];
-    state.strokes = Array.isArray(saved.strokes) ? saved.strokes : [];
-    state.connections = Array.isArray(saved.connections) ? saved.connections : [];
-    state.projects = Array.isArray(saved.projects) ? saved.projects : state.projects;
-    state.currentProjectId = saved.currentProjectId || state.currentProjectId;
-    normalizeProjects();
-  setTheme(saved.theme === "dark" ? "dark" : "light", false);
+    applyCanvasPayload(saved);
   }
   normalizeProjects();
   renderProjects();
   applyTransform();
   render();
+  try {
+    const foundRemote = await fetchRemoteState();
+    remoteReady = foundRemote;
+    if (!foundRemote) {
+      await createRemoteCanvas();
+      remoteReady = true;
+    }
+    startRemotePolling();
+  } catch (error) {
+    console.warn(error);
+    remoteReady = false;
+    setStatus("共享同步暂不可用，当前画布仅保存在本机");
+  }
 }
 
 function pastePoint() {
   return worldFromClient(window.innerWidth / 2, window.innerHeight / 2);
+}
+
+async function copyShareLink() {
+  const url = currentShareUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    setStatus("共享画布链接已复制");
+  } catch {
+    await appPrompt({
+      title: "共享画布链接",
+      message: "复制这个链接发给朋友即可进入同一份画布。",
+      defaultValue: url,
+      confirmText: "关闭"
+    });
+  }
 }
 
 function isLikelyEmoji(text) {
@@ -1995,6 +2148,10 @@ function bindEvents() {
     closeToolPopovers();
     locateProjectContent();
   });
+  els.shareBtn.addEventListener("click", () => {
+    closeToolPopovers();
+    copyShareLink();
+  });
   els.accountBtn.addEventListener("click", () => {
     closeToolPopovers();
     toggleAccountPanel(true);
@@ -2165,6 +2322,7 @@ function bindEvents() {
 async function init() {
   bindEvents();
   try {
+    await ensureCanvasLink();
     await restoreState();
     setStatus("已就绪：拖拽上传、Ctrl+V 粘贴、滚轮缩放、拖动画布移动");
   } catch (error) {
